@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/CBL-Group-17.iml" filepath="$PROJECT_DIR$/.idea/CBL-Group-17.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/shareddb_cbl.iml" filepath="$PROJECT_DIR$/.idea/shareddb_cbl.iml" />
     </modules>
   </component>
 </project>
