@@ -58,6 +58,6 @@ df_main = df_main.merge(df_housing, on="LSOA code", how="left")
 df_main.fillna(0, inplace=True)
 
 # Save the final version
-df_main.to_csv("C:/Users/20231229/PycharmProjects/shareddb_cbl/data_processed/final_dataset.csv", index=False)
+df_main.to_csv("C:/Users/20231229/PycharmProjects/shareddb_cbl/data_processed/all_features_data.csv", index=False)
 print("Housing data successfully merged.")
 
