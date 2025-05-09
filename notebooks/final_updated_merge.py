@@ -52,7 +52,7 @@ df_final = df_grouped.merge(df_lsoa, on="LSOA code", how="left")
 df_final.fillna(0, inplace=True)
 
 # === 7. Save the final dataset ===
-output_path = "C:/Users/20231229/PycharmProjects/shareddb_cbl/data_processed/burglary_lsoa_month_enriched.csv"
+output_path = "/data_processed/final_dataset_new.csv"
 os.makedirs("data_processed", exist_ok=True)
 df_final.to_csv(output_path, index=False)
 
