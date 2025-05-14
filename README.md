@@ -1,6 +1,6 @@
 # Shared Dataset for Police Demand Forecasting – Residential Burglary in London
 
-This repository contains the code and dataset generation pipeline for a data-driven project focused on forecasting residential burglary in London. The dataset integrates spatial, temporal, socioeconomic, and environmental information to support automated police demand forecasting.
+This repository contains the code and datasets generation pipeline for a data-driven project focused on forecasting residential burglary in London. The dataset integrates spatial, temporal, socioeconomic, and environmental information to support automated police demand forecasting.
 
 ## Project Aim
 
@@ -21,6 +21,10 @@ The final dataset combines the following official and publicly available sources
 | [OpenStreetMap](https://www.openstreetmap.org/) | Geographic location of schools |
 | UK Solar Data | Monthly daylight hour estimates for London, derived from solar calculations |
 
+The IMD scores dataset includes different IMD scores such as IMD overall, employment, barriers to housing, education, skills, and living environment scores. The dataset contains data for all London LSOA regions from 2010 to 2025, and uses copying forward and backward during the 4-year interval periods. First the data from 2010 IMD is used to fill in the years from 2010-2014, second the IMD 2015 data is used for 2015-2018, and lastly, the 2019 IMD data is used for 2019-2025. It uses data from:
+| [IMD 2019](https://www.gov.uk/government/statistics/english-indices-of-deprivation-2019) | Index of Multiple Deprivation (IMD) scores and subdomains |
+| [IMD 2015](https://www.gov.uk/government/statistics/english-indices-of-deprivation-2015) | Index of Multiple Deprivation (IMD) scores and subdomains |
+| [IMD 2010](https://www.gov.uk/government/statistics/english-indices-of-deprivation-2010) | Index of Multiple Deprivation (IMD) scores and subdomains |
 ## Code & Tools
 
 The dataset was created using the following tools and libraries:
@@ -29,7 +33,7 @@ The dataset was created using the following tools and libraries:
 - GitHub for version control
 - PyCharm for local development
 
-## Final Dataset Description
+## Final Datasets Description
 
 Each row in the final dataset represents one month for one LSOA (Lower Layer Super Output Area) in London. The columns include:
 
@@ -86,6 +90,35 @@ Each row in the final dataset represents one month for one LSOA (Lower Layer Sup
 | `RoomDensity_High` | Households with more than 1.5 people per room (overcrowded) |
 
 > Note: Most census features are static (from 2021), repeated for each monthly row.
+
+
+**IMD dataset column descriptions:**
+
+** IMD Score (Overall Index)**
+The IMD Score is a composite measure of relative deprivation for small areas in England, known as Lower-layer Super Output Areas (LSOAs). It combines information from seven distinct domains of deprivation, each weighted to reflect its relative importance. The overall score ranks areas from the most to the least deprived, facilitating comparisons across regions. 
+
+** Employment Score**
+This domain measures the proportion of the working-age population in an area involuntarily excluded from the labour market due to unemployment, sickness, or disability. It includes individuals who are unemployed or unable to work due to health conditions or disabilities. Indicators encompass claimants of benefits such as Jobseeker’s Allowance, Employment and Support Allowance, and Universal Credit under specific conditions. 
+
+** Education, Skills, and Training Score**
+This domain evaluates educational deprivation by examining both:
+Children and Young People Sub-domain: Focuses on metrics like school attainment levels and absenteeism rates.
+Adult Skills Sub-domain: Assesses the proportion of adults lacking qualifications or possessing low literacy and numeracy skills.
+Together, these sub-domains reflect the flow and stock of educational disadvantage within an area. 
+
+** Income Score**
+This domain measures the proportion of the population experiencing deprivation relating to low income. The definition of low income includes both those people who are out-of-work and those who are in work but have low earnings (and who satisfy the respective means tests). The indicators which comprise this domain are: Income Support claimants, income-based Jobseeker’s Allowance claimants, income-based Employment and Support Allowance claimants, Pension Credit claimants, Working Tax Credit and Child Tax Credit recipients below a certain income threshold, and Universal Credit claimants with no income from employment. GOV.UK
+ Barriers to Housing and Services Score
+This domain captures challenges related to housing and access to essential services, divided into two sub-domains:
+Wider Barriers: Includes issues like housing affordability, overcrowding, and homelessness.
+Geographical Barriers: Assesses the physical distance to key services such as general practitioners, supermarkets, and schools. 
+
+** Living Environment**
+This domain evaluates the quality of the local environment through two sub-domains:
+Indoors Living Environment: Assesses housing quality, including factors like the presence of central heating and compliance with the Decent Homes Standard.
+Outdoors Living Environment: Measures external environmental factors such as air quality and road traffic accidents. 
+
+These descriptions are based on the official definitions provided in the English Indices of Deprivation 2019 Technical Report. 
 
 ## Intended Uses
 
