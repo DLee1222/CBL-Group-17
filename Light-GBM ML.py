@@ -8,7 +8,7 @@ from imblearn.over_sampling import SMOTE
 import shap
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("/data_processed/all_features_data.csv")
+df = pd.read_csv("")
 
 # split features and target
 X = df.drop(columns=["is_hotspot"])
