@@ -35,7 +35,8 @@ london_boroughs = [
     {"borough": "Westminster", "code": "E09000033"}
 ]
 print(london_boroughs)
-
+import zipfile
+import os
 def extract_gss_from_zip(zip_path):
     with zipfile.ZipFile(zip_path, 'r') as zipf:
         return [os.path.splitext(os.path.basename(f))[0]
