@@ -1,0 +1,110 @@
+# this part extracts all the codes for the borought and wards. the Wards are extracted from a folder. And the data from the borough is copied here for convenience. 
+london_boroughs = [
+    {"borough": "City of London" , "code" : "E09000001"},
+    {"borough": "Barking and Dagenham", "code": "E09000002"},
+    {"borough": "Barnet", "code": "E09000003"},
+    {"borough": "Bexley", "code": "E09000004"},
+    {"borough": "Brent", "code": "E09000005"},
+    {"borough": "Bromley", "code": "E09000006"},
+    {"borough": "Camden", "code": "E09000007"},
+    {"borough": "Croydon", "code": "E09000008"},
+    {"borough": "Ealing", "code": "E09000009"},
+    {"borough": "Enfield", "code": "E09000010"},
+    {"borough": "Greenwich", "code": "E09000011"},
+    {"borough": "Hackney", "code": "E09000012"},
+    {"borough": "Hammersmith and Fulham", "code": "E09000013"},
+    {"borough": "Haringey", "code": "E09000014"},
+    {"borough": "Harrow", "code": "E09000015"},
+    {"borough": "Havering", "code": "E09000016"},
+    {"borough": "Hillingdon", "code": "E09000017"},
+    {"borough": "Hounslow", "code": "E09000018"},
+    {"borough": "Islington", "code": "E09000019"},
+    {"borough": "Kensington and Chelsea", "code": "E09000020"},
+    {"borough": "Kingston upon Thames", "code": "E09000021"},
+    {"borough": "Lambeth", "code": "E09000022"},
+    {"borough": "Lewisham", "code": "E09000023"},
+    {"borough": "Merton", "code": "E09000024"},
+    {"borough": "Newham", "code": "E09000025"},
+    {"borough": "Redbridge", "code": "E09000026"},
+    {"borough": "Richmond upon Thames", "code": "E09000027"},
+    {"borough": "Southwark", "code": "E09000028"},
+    {"borough": "Sutton", "code": "E09000029"},
+    {"borough": "Tower Hamlets", "code": "E09000030"},
+    {"borough": "Waltham Forest", "code": "E09000031"},
+    {"borough": "Wandsworth", "code": "E09000032"},
+    {"borough": "Westminster", "code": "E09000033"}
+]
+print(london_boroughs)
+
+def extract_gss_from_zip(zip_path):
+    with zipfile.ZipFile(zip_path, 'r') as zipf:
+        return [os.path.splitext(os.path.basename(f))[0]
+                for f in zipf.namelist()]
+
+zip_path = r"C:\Users\20234513\Downloads\2024-12\2024-12\metropolitan\All wards metro.zip"
+print(extract_gss_from_zip(zip_path))
+
+print(len(extract_gss_from_zip(zip_path)))
+# this part extracts all the codes for the borought and wards. the Wards are extracted from a folder. And the data from the borough is copied here for convenience. 
+london_boroughs = [
+    {"borough": "City of London" , "code" : "E09000001"},
+    {"borough": "Barking and Dagenham", "code": "E09000002"},
+    {"borough": "Barnet", "code": "E09000003"},
+    {"borough": "Bexley", "code": "E09000004"},
+    {"borough": "Brent", "code": "E09000005"},
+    {"borough": "Bromley", "code": "E09000006"},
+    {"borough": "Camden", "code": "E09000007"},
+    {"borough": "Croydon", "code": "E09000008"},
+    {"borough": "Ealing", "code": "E09000009"},
+    {"borough": "Enfield", "code": "E09000010"},
+    {"borough": "Greenwich", "code": "E09000011"},
+    {"borough": "Hackney", "code": "E09000012"},
+    {"borough": "Hammersmith and Fulham", "code": "E09000013"},
+    {"borough": "Haringey", "code": "E09000014"},
+    {"borough": "Harrow", "code": "E09000015"},
+    {"borough": "Havering", "code": "E09000016"},
+    {"borough": "Hillingdon", "code": "E09000017"},
+    {"borough": "Hounslow", "code": "E09000018"},
+    {"borough": "Islington", "code": "E09000019"},
+    {"borough": "Kensington and Chelsea", "code": "E09000020"},
+    {"borough": "Kingston upon Thames", "code": "E09000021"},
+    {"borough": "Lambeth", "code": "E09000022"},
+    {"borough": "Lewisham", "code": "E09000023"},
+    {"borough": "Merton", "code": "E09000024"},
+    {"borough": "Newham", "code": "E09000025"},
+    {"borough": "Redbridge", "code": "E09000026"},
+    {"borough": "Richmond upon Thames", "code": "E09000027"},
+    {"borough": "Southwark", "code": "E09000028"},
+    {"borough": "Sutton", "code": "E09000029"},
+    {"borough": "Tower Hamlets", "code": "E09000030"},
+    {"borough": "Waltham Forest", "code": "E09000031"},
+    {"borough": "Wandsworth", "code": "E09000032"},
+    {"borough": "Westminster", "code": "E09000033"}
+]
+print(london_boroughs)
+
+def extract_gss_from_zip(zip_path):
+    with zipfile.ZipFile(zip_path, 'r') as zipf:
+        return [os.path.splitext(os.path.basename(f))[0]
+                for f in zipf.namelist()]
+
+zip_path = r"C:\Users\20234513\Downloads\2024-12\2024-12\metropolitan\All wards metro.zip"
+print(extract_gss_from_zip(zip_path))
+
+print(len(extract_gss_from_zip(zip_path)))
+
+#now we add the LSAO and the crime rates. We do this again by using a lookup database and the pandas dataframe. The logic is the same as in the first Part
+lookup_LSAO_Ward = pd.read_csv(r"C:\Users\20234513\Downloads\LSOA_(2021)_to_Electoral_Ward_(2024)_to_LAD_(2024)_Best_Fit_Lookup_in_EW (1).csv")
+All_LSAO_London = pd.read_csv(r"C:\Users\20234513\Downloads\hot-spot (2).csv")
+
+
+# Merge based on LSOA code
+merged1 = All_LSAO_London.merge(lookup_LSAO_Ward, left_on='LSOA code', right_on='LSOA21CD', how='left')
+
+
+
+New_Data_Frame = merged1[['LSOA code', 'Burglary_Count', 'WD24NM', 'LAD24NM']]
+New_Data_Frame.columns = ['LSOA code', 'Burglary_Count', 'Ward Name', 'Borough Name']
+
+# Now we have a second dataframe that also included the LSAO
+New_Data_Frame.to_csv("burglary_by_lsoa_ward_borough.csv", index=False)
