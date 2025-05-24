@@ -1,7 +1,6 @@
 import pandas as pd
 
-
-df = pd.read_csv("hot-spot-new.csv")
+df = pd.read_csv("non_COVID_period.csv")
 total_crime = df["Burglary_Count"].sum()
 
 df_sorted = df.sort_values("Burglary_Count", ascending=False).reset_index(drop=True)
@@ -12,10 +11,11 @@ threshold_index = df_sorted[df_sorted["Cumulative_Percent"] >= 50].index[0]
 num_lsoas_50pct = threshold_index + 1
 
 print(f"Total burglary count: {total_crime}")
-print(f"Number of LSOAs accounting for 50% of total crime: {num_lsoas_50pct}")
+print(f"Number of LSOAs accounting for 50% of total crime during non COVID: {num_lsoas_50pct}")
 
 top_lsoas = df_sorted.head(num_lsoas_50pct)
 print("\nLSOAs contributing to the first 50% of crime:")
 print(top_lsoas[["LSOA code", "Burglary_Count", "Cumulative_Percent"]].to_string(index=False))
 
-top_lsoas.to_csv("hot_spots_top50%.csv", index=False)
+
+top_lsoas.to_csv("hot_spots_top50%_nonCOVID.csv", index=False)

@@ -1,6 +1,6 @@
 import pandas as pd
 from scipy.stats import norm
-df = pd.read_csv("hot-spot.csv")
+df = pd.read_csv("hot-spot-new.csv")
 # we calculate the z-score for the Burglary_Count column
 df["z_score"] = (df["Burglary_Count"]- df["Burglary_Count"].mean()) / df["Burglary_Count"].std()
 # calculate what is the z-score belonging to the top 10% of the distribution
