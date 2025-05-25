@@ -17,8 +17,7 @@ burglary_df = pd.read_csv('burglary.csv')
 #Create a dictionary such that the key is the lsoa_code and the value is a dictionary of the information of that LSOA.
 data_lookup = burglary_df.set_index('LSOA code').to_dict(orient='index')
 
-
-
+#create the heatmap
 heatmap = px.choropleth_map(
     burglary_df,
     geojson=lsoa_geojson,
@@ -34,52 +33,75 @@ heatmap = px.choropleth_map(
     labels={'Burglary_Count': 'Burglary Count'},
 )
 
-
 app.layout = app.layout = html.Div(
 
     style={
         "display": "flex",
-        "justifyContent": "flex-start",
         "padding": "20px",
-        "backgroundColor": "#f5f5f5",
     },
     children=[
-
         html.Div(
-            style= {'display': 'flex', 'flexDirection': 'column', 'gap': '10px', 'alignItems': 'center'},
-            children =[
+            style={"display": "flex", "flexDirection": "column", "gap": "10px", },
+            children=[
                 html.H1("LSOA Burglary Heatmap", style={"margin": "0"}),
 
+            html.Div(
+            style= {'display': 'flex', 'flexDirection': 'row', 'gap': '10px'},
+            children =[
                 html.Div(
-                    style={
-                        "display": "flex",
-                        "flexDirection": "row",
-                        "width": "800px",
-                        "height": "600px",
-                        "backgroundColor": "white",
-                        "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
-                        "borderRadius": "8px",
-                        "overflow": "hidden",
-                    },
+                    style={'display': 'flex', 'flexDirection': 'column', 'gap': '10px'},
+                    # column for stacking vertically
                     children=[
-
                         html.Div(
-                            style={"flex": "1 1 auto"},
+                            style={
+                                "display": "flex",
+                                "flexDirection": "row",
+                                "width": "800px",
+                                "height": "600px",
+                                "backgroundColor": "white",
+                                "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
+                                "borderRadius": "8px",
+                                "overflow": "hidden",
+                            },
                             children=[
-                                dcc.Graph(
-                                    id="map",
-                                    figure=heatmap,
-                                    style={"height": "100%", "width": "100%"},
-                                    config={"displayModeBar": False,},
-                                    )
-                                ],
-                            ),
-                        ],
-                    )
-                ],
-            )
-        ],
-    )
+
+                                html.Div(
+                                    style={"flex": "1 1 auto"},
+                                    children=[
+                                        dcc.Graph(
+                                            id="map",
+                                            figure=heatmap,
+                                            style={"height": "100%", "width": "100%"},
+                                            config={"displayModeBar": False,},
+                                            )
+                                        ],
+                                    ),
+                            ],
+                        ),
+                    ],
+                ),
+                html.Div(style={"display": "flex", "flexDirection": "column", "gap": "10px",
+                                "width": "200px", "height": "600px", "justifyContent": "flex-start"},
+                         children=[
+                             html.Label("Search LSOA Code:"),
+                             dcc.Input(
+                                 id='lsoa-input',
+                                 type='text',
+                                 placeholder='Enter LSOA code',
+                                 debounce=True,
+                                 style={"width": "100%", "padding": "8px"}
+                             ),
+                             html.Div(id='search-feedback', style={"color": "red"})
+                         ],
+                ),
+            ],
+         )
+
+            ],
+    ),
+
+    ],
+)
 
 
 
