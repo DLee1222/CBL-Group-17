@@ -1,8 +1,10 @@
 import json
 import pandas as pd
+import plotly.express as px
 from dash import Dash, html, dcc
 import dash_leaflet as dl
 from dash.dependencies import Input, Output
+from mercantile import feature
 
 app = Dash(__name__)
 
@@ -15,51 +17,73 @@ burglary_df = pd.read_csv('burglary.csv')
 #Create a dictionary such that the key is the lsoa_code and the value is a dictionary of the information of that LSOA.
 data_lookup = burglary_df.set_index('LSOA code').to_dict(orient='index')
 
-#Create python wrapper for the GeoJSON react component
-geojson_layer = dl.GeoJSON(
-    data=lsoa_geojson,
-    id="geojson",
-    options=dict(style=dict(weight=1, color='black', fillOpacity=0.5)),
-    hoverStyle={"weight": 3, "color": 'blue', "fillOpacity": 0.7},
+
+
+heatmap = px.choropleth_map(
+    burglary_df,
+    geojson=lsoa_geojson,
+    locations='LSOA code',
+    featureidkey='properties.LSOA21CD',
+    color='Burglary_Count',
+    color_continuous_scale="viridis",
+    range_color = (10, 350),
+    map_style="white-bg",
+    zoom=8.85,
+    opacity=0.7,
+    center={"lat": 51.5074, "lon": -0.1278},
+    labels={'Burglary_Count': 'Burglary Count'},
 )
 
-def serve_layout():
-    return html.Div([
-        html.H1("London LSOA Burglary Map"),
-        dl.Map(
-            [dl.TileLayer(), geojson_layer, ],
-            id="map",
-            style={'width': '100%', 'height': '600px'},
-            center=[51.5074, -0.1278],  # London center
-            zoom=10
-        ),
-        html.Div(id="tooltip", style={"whiteSpace": "pre-line", "marginTop": "10px", "fontSize": "16px"}),
-    ])
 #whenever dash want to render the webapp layout you can find its definition in the function serve_layout
-app.layout = serve_layout
+app.layout = app.layout = html.Div(
+    # outer container: fill full width + center its child
+    style={
+        "display": "flex",
+        "justifyContent": "flex-start",
+        "padding": "20px",
+        "backgroundColor": "#f5f5f5",
+    },
+    children=[
+        # the “blue box” container
+        html.Div(
+            style= {'display': 'flex', 'flexDirection': 'column', 'gap': '10px', 'alignItems': 'center'},
+            children =[
+                html.H1("LSOA Burglary Heatmap", style={"margin": "0"}),
 
-def tooltip_text(feature, **kwargs):
+                html.Div(
+                    style={
+                        "display": "flex",
+                        "flexDirection": "row",
+                        "width": "800px",       # ← your desired box width
+                        "height": "600px",      # ← your desired box height
+                        "backgroundColor": "white",
+                        "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
+                        "borderRadius": "8px",
+                        "overflow": "hidden",
+                    },
+                    children=[
+                        # map takes up most of the box
+                        html.Div(
+                            style={"flex": "1 1 auto"},
+                            children=[
+                                dcc.Graph(
+                                    id="map",
+                                    figure=heatmap,
+                                    style={"height": "100%", "width": "100%"},
+                                    config={"displayModeBar": False,},
+                                    )
+                                ],
+                            ),
+                        ],
+                    )
+                ],
+            )
+        ],
+    )
 
-    lsoa = feature.get('LSOA21CD')
-    info = data_lookup.get(lsoa, {})
-    count = info.get('Burglary_Count', 'N/A')
-    print( f"LSOA: {lsoa} \n Burglary Count: {count}")
-    return f"LSOA: {lsoa} \n Burglary Count: {count}"
 
 
-@app.callback(
-    Output("tooltip", "children"),
-    Input("geojson", "clickData")
-)
-def update_tooltip(click_data):
 
-    if click_data is None:
-        return ""
-
-    # click_data contains the GeoJSON feature clicked under 'feature' key
-    feature = click_data.get('properties')
-    print(feature)
-    return tooltip_text(feature)
 
 
 if __name__ == '__main__':
