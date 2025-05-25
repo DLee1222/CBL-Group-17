@@ -34,9 +34,9 @@ heatmap = px.choropleth_map(
     labels={'Burglary_Count': 'Burglary Count'},
 )
 
-#whenever dash want to render the webapp layout you can find its definition in the function serve_layout
+
 app.layout = app.layout = html.Div(
-    # outer container: fill full width + center its child
+
     style={
         "display": "flex",
         "justifyContent": "flex-start",
@@ -44,7 +44,7 @@ app.layout = app.layout = html.Div(
         "backgroundColor": "#f5f5f5",
     },
     children=[
-        # the “blue box” container
+
         html.Div(
             style= {'display': 'flex', 'flexDirection': 'column', 'gap': '10px', 'alignItems': 'center'},
             children =[
@@ -54,15 +54,15 @@ app.layout = app.layout = html.Div(
                     style={
                         "display": "flex",
                         "flexDirection": "row",
-                        "width": "800px",       # ← your desired box width
-                        "height": "600px",      # ← your desired box height
+                        "width": "800px",
+                        "height": "600px",
                         "backgroundColor": "white",
                         "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
                         "borderRadius": "8px",
                         "overflow": "hidden",
                     },
                     children=[
-                        # map takes up most of the box
+
                         html.Div(
                             style={"flex": "1 1 auto"},
                             children=[
