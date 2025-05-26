@@ -1,7 +1,7 @@
 import json
 import pandas as pd
 import plotly.express as px
-from dash import Dash, html, dcc
+from dash import Dash, html, dcc, ctx
 import dash_leaflet as dl
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
@@ -18,6 +18,15 @@ burglary_df = pd.read_csv('burglary.csv')
 #Create a dictionary such that the key is the lsoa_code and the value is a dictionary of the information of that LSOA.
 data_lookup = burglary_df.set_index('LSOA code').to_dict(orient='index')
 
+sorted_df = burglary_df.sort_values(by="Borough")
+
+dropdown_options = [
+    {
+        "label": f"{row['Borough']} - {row['LSOA code']}",
+        "value": row["LSOA code"]
+    }
+    for _, row in sorted_df.iterrows()
+]
 
 heatmap = px.choropleth_map(
     burglary_df,
@@ -47,8 +56,8 @@ app.layout = html.Div(
                 html.Div(
                     style={
                         "position": "relative",
-                        "width": "800px",
-                        "height": "600px",
+                        "width": "60vw",
+                        "height": "94vh",
                         "backgroundColor": "white",
                         "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
                         "borderRadius": "8px",
@@ -82,20 +91,38 @@ app.layout = html.Div(
                         "display": "flex",
                         "flexDirection": "column",
                         "gap": "10px",
-                        "width": "200px",
-                        "height": "600px",
+                        "width": "35vw",
+                        "height": "20vh",
+                        "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
+                        "borderRadius": "8px",
+                        "overflow": "hidden",
+                        'backgroundColor': "white",
                         "justifyContent": "flex-start",
+                        "padding": "10px",
                     },
                     children=[
-                        html.Label("Search LSOA Code:"),
-                        dcc.Input(
-                            id='lsoa-input',
-                            type='text',
-                            placeholder='Enter LSOA code',
-                            debounce=True,
-                            style={"width": "100%", "padding": "8px"}
+                        html.Label("Search LSOA"),
+                        dcc.Dropdown(
+                            id='lsoa-dropdown',
+                            options=dropdown_options,
+                            placeholder='Select an LSOA code',
+                            style={"width": "100%"}
                         ),
-                        html.Div(id='search-feedback', style={"color": "red"})
+                        html.Button(
+                            "Reset Map",
+                            id="reset-button",
+                            n_clicks=0,
+                            style={
+                                "padding": "10px",
+                                "backgroundColor": "#d9534f",
+                                "color": "white",
+                                "border": "none",
+                                "borderRadius": "5px",
+                                "cursor": "pointer"
+                            }
+                        ),
+
+                        html.Div(id='search-feedback', style={"color": "black"}),
                     ],
                 ),
             ],
@@ -106,9 +133,14 @@ app.layout = html.Div(
 @app.callback(
     Output('map', 'figure'),
     Output('search-feedback', 'children'),
-    Input('lsoa-input', 'value')
+    Input('lsoa-dropdown', 'value'),
+    Input('reset-button', 'n_clicks'),
 )
-def zoom_to_lsoa(code):
+def zoom_to_lsoa(code, n_clicks):
+    triggered_id = ctx.triggered_id
+    if triggered_id == 'reset-button' or not code:
+        return heatmap, ""
+
     if not code:
         return heatmap, ""
 
