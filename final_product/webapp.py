@@ -95,7 +95,6 @@ app.layout = html.Div(
                         "height": "20vh",
                         "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
                         "borderRadius": "8px",
-                        "overflow": "hidden",
                         'backgroundColor': "white",
                         "justifyContent": "flex-start",
                         "padding": "10px",
