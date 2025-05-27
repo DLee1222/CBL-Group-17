@@ -13,6 +13,27 @@ df = pd.read_csv("dataset_ML.csv")
 # add hotspot labels
 hotspot_df = pd.read_csv("hotspot_ML.csv")
 hotspot_df["is_hotspot"] = 1
+
+# label COVID hotspots
+covid_start = (2020, 3)
+covid_end = (2021, 12)
+
+hotspot_df["year"] = hotspot_df["year"].astype(int)
+hotspot_df["Month_Num"] = hotspot_df["Month_Num"].astype(int)
+
+covid_hotspots = hotspot_df[
+    (hotspot_df["year"] > covid_start[0]) |
+    ((hotspot_df["year"] == covid_start[0]) & (hotspot_df["Month_Num"] >= covid_start[1]))
+]
+covid_hotspots = covid_hotspots[
+    (covid_hotspots["year"] < covid_end[0]) |
+    ((covid_hotspots["year"] == covid_end[0]) & (covid_hotspots["Month_Num"] <= covid_end[1]))
+]
+
+covid_keys = covid_hotspots[["LSOA code", "year", "Month_Num"]].astype(str).agg("_".join, axis=1)
+df_keys = df[["LSOA code", "year", "Month_Num"]].astype(str).agg("_".join, axis=1)
+df["covid_hotspot"] = df_keys.isin(covid_keys).astype(int)
+
 df["is_hotspot"] = 0
 hotspot_keys = hotspot_df[["LSOA code", "year", "Month_Num"]].astype(str).agg("_".join, axis=1)
 df_keys = df[["LSOA code", "year", "Month_Num"]].astype(str).agg("_".join, axis=1)
