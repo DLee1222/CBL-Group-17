@@ -8,8 +8,18 @@ from imblearn.over_sampling import SMOTE
 import shap
 import matplotlib.pyplot as plt
 
-df = pd.read_csv("")
+df = pd.read_csv("dataset_ML.csv")
 
+# add hotspot labels
+hotspot_df = pd.read_csv("hotspot_ML.csv")
+hotspot_df["is_hotspot"] = 1
+df["is_hotspot"] = 0
+hotspot_keys = hotspot_df[["LSOA code", "year", "Month_Num"]].astype(str).agg("_".join, axis=1)
+df_keys = df[["LSOA code", "year", "Month_Num"]].astype(str).agg("_".join, axis=1)
+df.loc[df_keys.isin(hotspot_keys), "is_hotspot"] = 1
+
+# drop identifiers before splitting features and target
+df = df.drop(columns=["LSOA code", "year", "Month_Num"])
 # split features and target
 X = df.drop(columns=["is_hotspot"])
 y = df["is_hotspot"]
