@@ -48,88 +48,99 @@ heatmap = px.choropleth_map(
 
 # App Layout
 app.layout = html.Div(
-    style={"display": "flex", "padding": "20px"},
+    style={
+        "display": "flex",
+        "padding": "20px",
+    },
     children=[
-        # Left: Map
         html.Div(
-            style={
-                "position": "relative",
-                "width": "60vw",
-                "height": "94vh",
-                "backgroundColor": "white",
-                "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
-                "borderRadius": "8px",
-                "overflow": "hidden",
-            },
+            style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'},
             children=[
-                dcc.Graph(
-                    id="map",
-                    figure=heatmap,
-                    style={"width": "100%", "height": "100%"},
-                    config={"displayModeBar": False},
-                ),
-                html.H1(
-                    "LSOA Burglary Heatmap",
+                html.Div(
                     style={
-                        "position": "absolute",
-                        "top": "10px",
-                        "left": "50%",
-                        "transform": "translateX(-50%)",
-                        "margin": 0,
-                        "pointerEvents": "none",
-                        "color": "rgba(0,0,0,0.8)",
-                        "fontSize": "1.75rem",
+                        "position": "relative",
+                        "width": "60vw",
+                        "height": "94vh",
+                        "backgroundColor": "white",
+                        "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
+                        "borderRadius": "8px",
+                        "overflow": "hidden",
                     },
-                ),
-            ],
-        ),
+                    children=[
+                        dcc.Graph(
+                            id="map",
+                            figure=heatmap,
+                            style={"width": "100%", "height": "100%"},
+                            config={"displayModeBar": False},
+                        ),
 
-        # Right: Search + Trend
-        html.Div(
-            style={
-                "display": "flex",
-                "flexDirection": "column",
-                "gap": "10px",
-                "width": "35vw",
-                "height": "94vh",
-                "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
-                "borderRadius": "8px",
-                'backgroundColor': "white",
-                "justifyContent": "flex-start",
-                "padding": "10px",
-                "overflowY": "auto"
-            },
-            children=[
-                html.Label("Search LSOA"),
-                dcc.Dropdown(
-                    id='lsoa-dropdown',
-                    options=dropdown_options,
-                    placeholder='Select an LSOA code',
-                    style={"width": "100%"}
+                        html.H1(
+                            "LSOA Burglary Heatmap",
+                            style={
+                                "position": "absolute",
+                                "top": "10px",
+                                "left": "50%",
+                                "transform": "translateX(-50%)",
+                                 "margin": 0,
+                                "pointerEvents": "none",
+                                "color": "rgba(0,0,0,0,0.8)",
+                                "fontSize": "1.75rem",
+                            },
+                        ),
+                    ],
                 ),
-                html.Button(
-                    "Reset Map",
-                    id="reset-button",
-                    n_clicks=0,
+                html.Div(
                     style={
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "gap": "10px",
+                        "width": "35vw",
+                        "height": "20vh",
+                        "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
+                        "borderRadius": "8px",
+                        "overflow": "hidden",
+                        'backgroundColor': "white",
+                        "justifyContent": "flex-start",
                         "padding": "10px",
-                        "backgroundColor": "#d9534f",
-                        "color": "white",
-                        "border": "none",
-                        "borderRadius": "5px",
-                        "cursor": "pointer"
-                    }
-                ),
-                html.Div(id='search-feedback', style={"color": "black"}),
+                    },
+                    children=[
 
-                dcc.Graph(
-                    id='burglary-trend',
-                    style={"height": "50vh", "marginTop": "10px"},
+                        html.Label("Search LSOA"),
+                        dcc.Dropdown(
+                            id='lsoa-dropdown',
+                            options=dropdown_options,
+                            placeholder='Select an LSOA code',
+                            style={"width": "100%"}
+                        ),
+                        html.Button(
+                            "Reset Map",
+                            id="reset-button",
+                            n_clicks=0,
+                            style={
+                                "padding": "10px",
+                                "backgroundColor": "#d9534f",
+                                "color": "white",
+                                "border": "none",
+                                "borderRadius": "5px",
+                                "cursor": "pointer"
+                            }
+                        ),
+                        html.Div(id='search-feedback', style={"color": "black"}),
+
+                    ],
+
                 ),
+
             ],
-        )
+       )
+
     ]
+
 )
+
+
+
+
 
 # Callback
 @app.callback(
