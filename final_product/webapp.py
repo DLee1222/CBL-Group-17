@@ -90,43 +90,60 @@ app.layout = html.Div(
                     ],
                 ),
                 html.Div(
-                    style={
-                        "display": "flex",
-                        "flexDirection": "column",
-                        "gap": "10px",
-                        "width": "35vw",
-                        "height": "20vh",
-                        "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
-                        "borderRadius": "8px",
-                        "overflow": "hidden",
-                        'backgroundColor': "white",
-                        "justifyContent": "flex-start",
-                        "padding": "10px",
-                    },
-                    children=[
-
-                        html.Label("Search LSOA"),
-                        dcc.Dropdown(
-                            id='lsoa-dropdown',
-                            options=dropdown_options,
-                            placeholder='Select an LSOA code',
-                            style={"width": "100%"}
-                        ),
-                        html.Button(
-                            "Reset Map",
-                            id="reset-button",
-                            n_clicks=0,
+                    style = {"backgroundColor": "#f5f5f5", "flexDirection": "column",},
+                    children = [
+                        html.Div(
                             style={
+                                "display": "flex",
+                                "flexDirection": "column",
+                                "gap": "10px",
+                                "width": "35.5vw",
+                                "height": "20vh",
+                                "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
+                                "borderRadius": "8px",
+                                'backgroundColor': "white",
+                                "justifyContent": "flex-start",
                                 "padding": "10px",
-                                "backgroundColor": "#d9534f",
-                                "color": "white",
-                                "border": "none",
-                                "borderRadius": "5px",
-                                "cursor": "pointer"
-                            }
-                        ),
-                        html.Div(id='search-feedback', style={"color": "black"}),
+                            },
+                            children=[
 
+                                html.Label("Search LSOA"),
+                                dcc.Dropdown(
+                                    id='lsoa-dropdown',
+                                    options=dropdown_options,
+                                    placeholder='Select an LSOA code',
+                                    style={"width": "100%"}
+                                ),
+                                html.Button(
+                                    "Reset Map",
+                                    id="reset-button",
+                                    n_clicks=0,
+                                    style={
+                                        "padding": "10px",
+                                        "backgroundColor": "#d9534f",
+                                        "color": "white",
+                                        "border": "none",
+                                        "borderRadius": "5px",
+                                        "cursor": "pointer"
+                                    }
+                                ),
+                                html.Div(id='search-feedback', style={"color": "black"}),
+                            ],
+
+                        ),
+                        html.Div (
+                            style = {
+                                "backgroundColor":"white",
+                                "height": "70vh",
+                                'marginTop': '10px',
+                                "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
+                                "borderRadius": "8px",
+                                "overflow": "hidden",
+                            },
+                            children=[
+                                dcc.Graph(id='burglary-trend', style={}, config={'displayModeBar': False}),
+                            ],
+                        ),
                     ],
 
                 ),
