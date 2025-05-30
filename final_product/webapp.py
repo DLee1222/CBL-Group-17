@@ -13,13 +13,20 @@ with open('london_lsoa.geojson') as f:
     lsoa_geojson = json.load(f)
 
 # Load the burglary data
-burglary_df = pd.read_csv('burglary.csv')
+monthly_df = pd.read_csv('final_dataset.csv')
+burglary_df = (
+    monthly_df.groupby(['LSOA code', 'Borough'])
+    ['Burglary_Count'].sum()
+    .reset_index()
+)
 data_lookup = burglary_df.set_index('LSOA code').to_dict(orient='index')
-sorted_df = burglary_df.sort_values(by="Borough")
 
-# Load the yearly burglary data
-yearly_burglary = pd.read_csv("dataset_ML.csv").groupby(['LSOA code', 'year'])['Burglary_Count'].sum().reset_index()
-#print(yearly_burglary.iloc[50:100])
+yearly_burglary = (
+    monthly_df.groupby(['LSOA code', 'Year'])['Burglary_Count']
+    .sum()
+    .reset_index()
+)
+sorted_df = burglary_df.sort_values(by=["Borough", "LSOA code"])
 
 # Dropdown options
 dropdown_options = [
@@ -39,7 +46,7 @@ heatmap = px.choropleth_map(
     color='Burglary_Count',
     color_continuous_scale="viridis",
     range_color=(burglary_df['Burglary_Count'].quantile(0.05), burglary_df['Burglary_Count'].quantile(0.95)),
-    map_style="white-bg",
+    map_style="open-street-map",
     zoom=8.85,
     opacity=0.7,
     center={"lat": 51.5074, "lon": -0.1278},
@@ -58,6 +65,8 @@ app.layout = html.Div(
             children=[
                 html.Div(
                     style={
+                        "display": "flex",
+                        "flexDirection": "column",
                         "position": "relative",
                         "width": "60vw",
                         "height": "94vh",
@@ -75,7 +84,7 @@ app.layout = html.Div(
                         ),
 
                         html.H1(
-                            "LSOA Burglary Heatmap",
+                            "LSOA Burglary Heatmap 2011-2025",
                             style={
                                 "position": "absolute",
                                 "top": "10px",
@@ -86,6 +95,17 @@ app.layout = html.Div(
                                 "color": "rgba(0,0,0,0,0.8)",
                                 "fontSize": "1.75rem",
                             },
+                        ),
+                        dcc.RangeSlider(
+                            id='year-slider',
+                            min=2011,
+                            max=2025,
+                            step=1,
+                            value=[2011, 2025],
+                            marks={year: str(year) for year in range(2011, 2025)},
+                            tooltip={"placement": "bottom", "always_visible": True},
+                            allowCross=False,
+                            updatemode='mouseup',
                         ),
                     ],
                 ),
@@ -164,20 +184,57 @@ app.layout = html.Div(
     Output('map', 'figure'),
     Output('search-feedback', 'children'),
     Output('burglary-trend', 'figure'),
+    Output('year-slider', 'value'),
+    Output('lsoa-dropdown', 'value'),
     Input('lsoa-dropdown', 'value'),
     Input('reset-button', 'n_clicks'),
+    Input('year-slider', 'value')
 )
-def zoom_to_lsoa(code, n_clicks):
+def zoom_to_lsoa(code, n_clicks, year_range):
+    DEFAULT_RANGE = [2011, 2025]
+    start_year, end_year = year_range
+
+    filtered = monthly_df[
+        (monthly_df['Year'] >= start_year) &
+        (monthly_df['Year'] <= end_year)
+        ]
+
+    df_map = (
+        filtered
+        .groupby(['LSOA code', 'Borough'])['Burglary_Count']
+        .sum()
+        .reset_index()
+    )
+    range_map = px.choropleth_map(
+        df_map,
+        geojson=lsoa_geojson,
+        locations='LSOA code',
+        featureidkey='properties.LSOA21CD',
+        color='Burglary_Count',
+        color_continuous_scale="viridis",
+        range_color=(df_map['Burglary_Count'].quantile(0.05),
+                     df_map['Burglary_Count'].quantile(0.95)),
+        map_style="open-street-map",
+        zoom=8.85,
+        opacity=0.7,
+        center={"lat": 51.5074, "lon": -0.1278},
+        labels={'Burglary_Count': 'Burglary Count'},
+    )
+
+    if not code:
+        empty_trend = go.Figure().update_layout(title="Select an LSOA to see yearly burglary trends")
+        return range_map, "", empty_trend, year_range, None
+
     triggered_id = ctx.triggered_id
     if triggered_id == 'reset-button' or not code:
         empty_fig = go.Figure().update_layout(title="Select an LSOA to see yearly burglary trends")
-        return heatmap, "", empty_fig
+        return heatmap, "", empty_fig, year_range, None
 
     code = code.strip().upper()
 
     if code not in data_lookup:
         empty_fig = go.Figure().update_layout(title="No data available")
-        return heatmap, "LSOA code not found.", empty_fig
+        return range_map, "LSOA code not found.", empty_fig, year_range, code
 
     polygon = None
     for f in lsoa_geojson['features']:
@@ -186,7 +243,7 @@ def zoom_to_lsoa(code, n_clicks):
             break
     if polygon is None:
         empty_fig = go.Figure().update_layout(title="No polygon found")
-        return heatmap, f"No geometry polygon for LSOA code {code}.", empty_fig
+        return heatmap, f"No geometry polygon for LSOA code {code}.", empty_fig, year_range
 
     coordinates = []
 
@@ -204,14 +261,14 @@ def zoom_to_lsoa(code, n_clicks):
     center = {"lon": sum(longitude) / len(longitude), "lat": sum(latitude) / len(latitude)}
 
     updated_heatmap = px.choropleth_map(
-        burglary_df,
+        df_map,
         geojson=lsoa_geojson,
         locations='LSOA code',
         featureidkey='properties.LSOA21CD',
         color='Burglary_Count',
         color_continuous_scale="viridis",
-        range_color=(burglary_df['Burglary_Count'].quantile(0.05), burglary_df['Burglary_Count'].quantile(0.95)),
-        map_style="white-bg",
+        range_color=(df_map['Burglary_Count'].quantile(0.05),df_map['Burglary_Count'].quantile(0.95)),
+        map_style="open-street-map",
         zoom=12,
         center=center,
         opacity=0.7,
@@ -228,27 +285,28 @@ def zoom_to_lsoa(code, n_clicks):
         hoverinfo='skip',
         showlegend=False
     ))
+    series = df_map.loc[df_map['LSOA code'] == code, 'Burglary_Count']
+    count = int(series.iloc[0])
+    feedback = f"LSOA {code} recorded {count} burglaries from {start_year} to {end_year}."
 
-    count = data_lookup[code]['Burglary_Count']
-    feedback = f"LSOA {code} recorded {count} burglaries."
-
-    yearly_data = yearly_burglary[yearly_burglary['LSOA code'] == code]
-    if yearly_data.empty:
-        trend_fig = go.Figure().update_layout(title="No yearly data available for this LSOA")
-    else:
-        trend_fig = px.bar(
-            yearly_data,
-            x='year',
-            y='Burglary_Count',
-            title=f"Yearly Burglary Trends for LSOA {code}",
-            labels={"Burglary_Count": "Burglaries", "year": "Year"},
-            text='Burglary_Count'
-        )
-        trend_fig.update_traces(marker_color='indigo', textposition='outside')
-        trend_fig.update_layout(uniformtext_minsize=5, uniformtext_mode='hide')
+    trend_df = (
+        filtered[filtered['LSOA code'] == code]
+        .groupby('Year')['Burglary_Count']
+        .sum()
+        .reset_index()
+    )
+    trend = px.bar(
+        trend_df,
+        x='Year', y='Burglary_Count',
+        title=f"Yearly Burglary Trends for {code}",
+        labels={'Burglary_Count': 'Burglaries'},
+        text='Burglary_Count'
+    )
+    trend.update_traces(textposition='outside')
+    trend.update_layout(uniformtext_minsize=5, uniformtext_mode='hide')
 
 
-    return updated_heatmap, feedback, trend_fig
+    return updated_heatmap, feedback, trend, year_range, code
 
 if __name__ == '__main__':
     app.run(debug=False)
