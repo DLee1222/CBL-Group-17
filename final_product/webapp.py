@@ -8,17 +8,20 @@ import plotly.graph_objects as go
 
 app = Dash(__name__)
 
-# Load the GeoJSON map
+
 with open('london_lsoa.geojson') as f:
     lsoa_geojson = json.load(f)
 
-# Load the burglary data
+
 monthly_df = pd.read_csv('final_dataset.csv')
+
+
 burglary_df = (
     monthly_df.groupby(['LSOA code', 'Borough'])
     ['Burglary_Count'].sum()
     .reset_index()
 )
+
 data_lookup = burglary_df.set_index('LSOA code').to_dict(orient='index')
 
 yearly_burglary = (
@@ -26,9 +29,9 @@ yearly_burglary = (
     .sum()
     .reset_index()
 )
+
 sorted_df = burglary_df.sort_values(by=["Borough", "LSOA code"])
 
-# Dropdown options
 dropdown_options = [
     {
         "label": f"{row['Borough']} - {row['LSOA code']}",
@@ -36,22 +39,24 @@ dropdown_options = [
     }
     for _, row in sorted_df.iterrows()
 ]
+def generate_heatmap( df, geojson, zoom, center = {"lat": 51.5074, "lon": -0.1278} ):
 
-# Create initial heatmap
-heatmap = px.choropleth_map(
-    burglary_df,
-    geojson=lsoa_geojson,
-    locations='LSOA code',
-    featureidkey='properties.LSOA21CD',
-    color='Burglary_Count',
-    color_continuous_scale="viridis",
-    range_color=(burglary_df['Burglary_Count'].quantile(0.05), burglary_df['Burglary_Count'].quantile(0.95)),
-    map_style="open-street-map",
-    zoom=8.85,
-    opacity=0.7,
-    center={"lat": 51.5074, "lon": -0.1278},
-    labels={'Burglary_Count': 'Burglary Count'},
-)
+    return px.choropleth_map(
+        df,
+        geojson=geojson,
+        locations='LSOA code',
+        featureidkey='properties.LSOA11CD',
+        color='Burglary_Count',
+        color_continuous_scale="viridis",
+        range_color=(df['Burglary_Count'].quantile(0.05), df['Burglary_Count'].quantile(0.95)),
+        map_style="open-street-map",
+        zoom=zoom,
+        opacity=0.7,
+        center= center,
+        labels={'Burglary_Count': 'Burglary Count'},
+    )
+
+heatmap = generate_heatmap(burglary_df, lsoa_geojson, zoom=8.85)
 
 # App Layout
 app.layout = html.Div(
@@ -205,21 +210,8 @@ def zoom_to_lsoa(code, n_clicks, year_range):
         .sum()
         .reset_index()
     )
-    range_map = px.choropleth_map(
-        df_map,
-        geojson=lsoa_geojson,
-        locations='LSOA code',
-        featureidkey='properties.LSOA21CD',
-        color='Burglary_Count',
-        color_continuous_scale="viridis",
-        range_color=(df_map['Burglary_Count'].quantile(0.05),
-                     df_map['Burglary_Count'].quantile(0.95)),
-        map_style="open-street-map",
-        zoom=8.85,
-        opacity=0.7,
-        center={"lat": 51.5074, "lon": -0.1278},
-        labels={'Burglary_Count': 'Burglary Count'},
-    )
+    range_map = generate_heatmap(df_map, lsoa_geojson, zoom=8.85)
+
 
     if not code:
         empty_trend = go.Figure().update_layout(title="Select an LSOA to see yearly burglary trends")
@@ -236,14 +228,15 @@ def zoom_to_lsoa(code, n_clicks, year_range):
         empty_fig = go.Figure().update_layout(title="No data available")
         return range_map, "LSOA code not found.", empty_fig, year_range, code
 
+    #This section finds the polygon for the selected LSOA code
     polygon = None
     for f in lsoa_geojson['features']:
-        if f['properties']['LSOA21CD'] == code:
+        if f['properties']['LSOA11CD'] == code:
             polygon = f
             break
     if polygon is None:
         empty_fig = go.Figure().update_layout(title="No polygon found")
-        return heatmap, f"No geometry polygon for LSOA code {code}.", empty_fig, year_range
+        return heatmap, f"No geometry polygon for LSOA code {code}.", empty_fig, year_range, code
 
     coordinates = []
 
@@ -260,22 +253,10 @@ def zoom_to_lsoa(code, n_clicks, year_range):
     latitude = [pt[1] for pt in coordinates]
     center = {"lon": sum(longitude) / len(longitude), "lat": sum(latitude) / len(latitude)}
 
-    updated_heatmap = px.choropleth_map(
-        df_map,
-        geojson=lsoa_geojson,
-        locations='LSOA code',
-        featureidkey='properties.LSOA21CD',
-        color='Burglary_Count',
-        color_continuous_scale="viridis",
-        range_color=(df_map['Burglary_Count'].quantile(0.05),df_map['Burglary_Count'].quantile(0.95)),
-        map_style="open-street-map",
-        zoom=12,
-        center=center,
-        opacity=0.7,
-        labels={'Burglary_Count': 'Burglary Count'},
-    )
+    updated_heatmap = generate_heatmap(df_map, lsoa_geojson, 12, center)
 
     lons, lats = zip(*coordinates)
+
     updated_heatmap.add_trace(go.Scattermap(
         lon=lons + (lons[0],),
         lat=lats + (lats[0],),
@@ -304,8 +285,6 @@ def zoom_to_lsoa(code, n_clicks, year_range):
     )
     trend.update_traces(textposition='outside')
     trend.update_layout(uniformtext_minsize=5, uniformtext_mode='hide')
-
-
     return updated_heatmap, feedback, trend, year_range, code
 
 if __name__ == '__main__':
