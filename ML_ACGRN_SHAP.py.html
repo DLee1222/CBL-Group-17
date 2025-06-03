@@ -1,0 +1,185 @@
+<html>
+<head>
+<title>ML_ACGRN.py</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<style type="text/css">
+.s0 { color: #cf8e6d;}
+.s1 { color: #bcbec4;}
+.s2 { color: #bcbec4;}
+.s3 { color: #6aab73;}
+.s4 { color: #2aacb8;}
+</style>
+</head>
+<body bgcolor="#1e1f22">
+<table CELLSPACING=0 CELLPADDING=5 COLS=1 WIDTH="100%" BGCOLOR="#606060" >
+<tr><td><center>
+<font face="Arial, Helvetica" color="#000000">
+ML_ACGRN.py</font>
+</center></td></tr></table>
+<pre><span class="s0">import </span><span class="s1">os</span>
+<span class="s0">import </span><span class="s1">pandas </span><span class="s0">as </span><span class="s1">pd</span>
+<span class="s0">import </span><span class="s1">numpy </span><span class="s0">as </span><span class="s1">np</span>
+<span class="s0">import </span><span class="s1">shap</span>
+<span class="s0">import </span><span class="s1">matplotlib</span><span class="s2">.</span><span class="s1">pyplot </span><span class="s0">as </span><span class="s1">plt</span>
+
+<span class="s0">from </span><span class="s1">sklearn</span><span class="s2">.</span><span class="s1">ensemble </span><span class="s0">import </span><span class="s1">RandomForestClassifier</span>
+<span class="s0">from </span><span class="s1">sklearn</span><span class="s2">.</span><span class="s1">metrics </span><span class="s0">import </span><span class="s1">roc_auc_score</span><span class="s2">, </span><span class="s1">precision_score</span>
+<span class="s0">from </span><span class="s1">sklearn</span><span class="s2">.</span><span class="s1">model_selection </span><span class="s0">import </span><span class="s1">train_test_split</span>
+
+
+<span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Working dir:&quot;</span><span class="s2">, </span><span class="s1">os</span><span class="s2">.</span><span class="s1">getcwd</span><span class="s2">())</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Files here:&quot;</span><span class="s2">, </span><span class="s1">os</span><span class="s2">.</span><span class="s1">listdir</span><span class="s2">(</span><span class="s3">&quot;.&quot;</span><span class="s2">))</span>
+
+<span class="s1">dataset </span><span class="s2">= </span><span class="s1">pd</span><span class="s2">.</span><span class="s1">read_csv</span><span class="s2">(</span><span class="s3">&quot;dataset_ML.csv&quot;</span><span class="s2">)</span>
+<span class="s1">hotspots </span><span class="s2">= (</span>
+    <span class="s1">pd</span><span class="s2">.</span><span class="s1">read_csv</span><span class="s2">(</span><span class="s3">&quot;hotspot_ML.csv&quot;</span><span class="s2">)</span>
+      <span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">hotspot</span><span class="s2">=</span><span class="s4">1</span><span class="s2">)[[</span><span class="s3">&quot;LSOA code&quot;</span><span class="s2">,</span><span class="s3">&quot;year&quot;</span><span class="s2">,</span><span class="s3">&quot;Month_Num&quot;</span><span class="s2">,</span><span class="s3">&quot;hotspot&quot;</span><span class="s2">]]</span>
+<span class="s2">)</span>
+
+
+<span class="s1">df </span><span class="s2">= (</span>
+    <span class="s1">dataset</span>
+    <span class="s2">.</span><span class="s1">merge</span><span class="s2">(</span><span class="s1">hotspots</span><span class="s2">, </span><span class="s1">on</span><span class="s2">=[</span><span class="s3">&quot;LSOA code&quot;</span><span class="s2">,</span><span class="s3">&quot;year&quot;</span><span class="s2">,</span><span class="s3">&quot;Month_Num&quot;</span><span class="s2">], </span><span class="s1">how</span><span class="s2">=</span><span class="s3">&quot;left&quot;</span><span class="s2">)</span>
+    <span class="s2">.</span><span class="s1">assign</span><span class="s2">(</span><span class="s1">hotspot</span><span class="s2">=</span><span class="s0">lambda </span><span class="s1">d</span><span class="s2">: </span><span class="s1">d</span><span class="s2">[</span><span class="s3">&quot;hotspot&quot;</span><span class="s2">].</span><span class="s1">fillna</span><span class="s2">(</span><span class="s4">0</span><span class="s2">).</span><span class="s1">astype</span><span class="s2">(</span><span class="s1">int</span><span class="s2">))</span>
+<span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Merged shape:&quot;</span><span class="s2">, </span><span class="s1">df</span><span class="s2">.</span><span class="s1">shape</span><span class="s2">, </span><span class="s3">&quot;| #hotspots:&quot;</span><span class="s2">, </span><span class="s1">df</span><span class="s2">[</span><span class="s3">&quot;hotspot&quot;</span><span class="s2">].</span><span class="s1">sum</span><span class="s2">())</span>
+
+
+<span class="s1">df </span><span class="s2">= </span><span class="s1">df</span><span class="s2">.</span><span class="s1">sort_values</span><span class="s2">([</span><span class="s3">&quot;LSOA code&quot;</span><span class="s2">,</span><span class="s3">&quot;year&quot;</span><span class="s2">,</span><span class="s3">&quot;Month_Num&quot;</span><span class="s2">])</span>
+<span class="s1">df</span><span class="s2">[</span><span class="s3">&quot;lag1&quot;</span><span class="s2">] = </span><span class="s1">df</span><span class="s2">.</span><span class="s1">groupby</span><span class="s2">(</span><span class="s3">&quot;LSOA code&quot;</span><span class="s2">)[</span><span class="s3">&quot;Burglary_Count&quot;</span><span class="s2">].</span><span class="s1">shift</span><span class="s2">(</span><span class="s4">1</span><span class="s2">).</span><span class="s1">fillna</span><span class="s2">(</span><span class="s4">0</span><span class="s2">)</span>
+<span class="s1">df</span><span class="s2">[</span><span class="s3">&quot;lag2&quot;</span><span class="s2">] = </span><span class="s1">df</span><span class="s2">.</span><span class="s1">groupby</span><span class="s2">(</span><span class="s3">&quot;LSOA code&quot;</span><span class="s2">)[</span><span class="s3">&quot;Burglary_Count&quot;</span><span class="s2">].</span><span class="s1">shift</span><span class="s2">(</span><span class="s4">2</span><span class="s2">).</span><span class="s1">fillna</span><span class="s2">(</span><span class="s4">0</span><span class="s2">)</span>
+<span class="s1">df</span><span class="s2">[</span><span class="s3">&quot;month_sin&quot;</span><span class="s2">] = </span><span class="s1">np</span><span class="s2">.</span><span class="s1">sin</span><span class="s2">(</span><span class="s4">2 </span><span class="s2">* </span><span class="s1">np</span><span class="s2">.</span><span class="s1">pi </span><span class="s2">* </span><span class="s1">df</span><span class="s2">[</span><span class="s3">&quot;Month_Num&quot;</span><span class="s2">] / </span><span class="s4">12</span><span class="s2">)</span>
+<span class="s1">df</span><span class="s2">[</span><span class="s3">&quot;month_cos&quot;</span><span class="s2">] = </span><span class="s1">np</span><span class="s2">.</span><span class="s1">cos</span><span class="s2">(</span><span class="s4">2 </span><span class="s2">* </span><span class="s1">np</span><span class="s2">.</span><span class="s1">pi </span><span class="s2">* </span><span class="s1">df</span><span class="s2">[</span><span class="s3">&quot;Month_Num&quot;</span><span class="s2">] / </span><span class="s4">12</span><span class="s2">)</span>
+
+
+<span class="s1">all_features </span><span class="s2">= [</span>
+    <span class="s3">&quot;lag1&quot;</span><span class="s2">,</span><span class="s3">&quot;lag2&quot;</span><span class="s2">,</span><span class="s3">&quot;Burglary_Count&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;IMD SCORE&quot;</span><span class="s2">,</span><span class="s3">&quot;INCOME SCORE&quot;</span><span class="s2">,</span><span class="s3">&quot;EMPLOYMENT SCORE&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;EDUCATION SKILLS AND TRAINING SCORE&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;BARRIERS TO HOUSING AND SERVICES SCORE&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;LIVING ENVIRONMENT SCORE&quot;</span><span class="s2">,</span><span class="s3">&quot;longitude&quot;</span><span class="s2">,</span><span class="s3">&quot;latitude&quot;</span><span class="s2">,</span>
+    <span class="s3">&quot;month_sin&quot;</span><span class="s2">,</span><span class="s3">&quot;month_cos&quot;</span>
+<span class="s2">]</span>
+<span class="s1">X_all </span><span class="s2">= </span><span class="s1">df</span><span class="s2">[</span><span class="s1">all_features</span><span class="s2">]</span>
+<span class="s1">y_all </span><span class="s2">= </span><span class="s1">df</span><span class="s2">[</span><span class="s3">&quot;hotspot&quot;</span><span class="s2">]</span>
+
+<span class="s1">X_train_all</span><span class="s2">, </span><span class="s1">X_test_all</span><span class="s2">, </span><span class="s1">y_train</span><span class="s2">, </span><span class="s1">y_test </span><span class="s2">= </span><span class="s1">train_test_split</span><span class="s2">(</span>
+    <span class="s1">X_all</span><span class="s2">, </span><span class="s1">y_all</span><span class="s2">, </span><span class="s1">test_size</span><span class="s2">=</span><span class="s4">0.3</span><span class="s2">, </span><span class="s1">random_state</span><span class="s2">=</span><span class="s4">42</span><span class="s2">, </span><span class="s1">stratify</span><span class="s2">=</span><span class="s1">y_all</span>
+<span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">f&quot;Train rows: </span><span class="s0">{</span><span class="s1">len</span><span class="s2">(</span><span class="s1">X_train_all</span><span class="s2">)</span><span class="s0">}</span><span class="s3">, Test rows: </span><span class="s0">{</span><span class="s1">len</span><span class="s2">(</span><span class="s1">X_test_all</span><span class="s2">)</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s2">)</span>
+
+
+<span class="s1">initial_model </span><span class="s2">= </span><span class="s1">RandomForestClassifier</span><span class="s2">(</span>
+    <span class="s1">n_estimators</span><span class="s2">=</span><span class="s4">100</span><span class="s2">,</span>
+    <span class="s1">max_depth</span><span class="s2">=</span><span class="s4">10</span><span class="s2">,</span>
+    <span class="s1">random_state</span><span class="s2">=</span><span class="s4">42</span><span class="s2">,</span>
+    <span class="s1">n_jobs</span><span class="s2">=-</span><span class="s4">1</span>
+<span class="s2">)</span>
+<span class="s1">initial_model</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_all</span><span class="s2">, </span><span class="s1">y_train</span><span class="s2">)</span>
+
+
+<span class="s1">y_proba_initial </span><span class="s2">= </span><span class="s1">initial_model</span><span class="s2">.</span><span class="s1">predict_proba</span><span class="s2">(</span><span class="s1">X_test_all</span><span class="s2">)[:, </span><span class="s4">1</span><span class="s2">]</span>
+<span class="s1">y_pred_initial  </span><span class="s2">= (</span><span class="s1">y_proba_initial </span><span class="s2">&gt;= </span><span class="s4">0.5</span><span class="s2">).</span><span class="s1">astype</span><span class="s2">(</span><span class="s1">int</span><span class="s2">)</span>
+
+<span class="s1">auc_initial  </span><span class="s2">= </span><span class="s1">roc_auc_score</span><span class="s2">(</span><span class="s1">y_test</span><span class="s2">, </span><span class="s1">y_proba_initial</span><span class="s2">)</span>
+<span class="s1">prec_initial </span><span class="s2">= </span><span class="s1">precision_score</span><span class="s2">(</span><span class="s1">y_test</span><span class="s2">, </span><span class="s1">y_pred_initial</span><span class="s2">)</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Initial (all‐feature) model metrics:&quot;</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">f&quot;  AUC-ROC:   </span><span class="s0">{</span><span class="s1">auc_initial</span><span class="s0">:</span><span class="s3">.3f</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">f&quot;  Precision: </span><span class="s0">{</span><span class="s1">prec_initial</span><span class="s0">:</span><span class="s3">.3f</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s2">)</span>
+
+
+<span class="s1">explainer_all </span><span class="s2">= </span><span class="s1">shap</span><span class="s2">.</span><span class="s1">TreeExplainer</span><span class="s2">(</span><span class="s1">initial_model</span><span class="s2">)</span>
+<span class="s1">shap_vals_all  </span><span class="s2">= </span><span class="s1">explainer_all</span><span class="s2">.</span><span class="s1">shap_values</span><span class="s2">(</span><span class="s1">X_train_all</span><span class="s2">)</span>
+<span class="s1">shap_pos_all   </span><span class="s2">= </span><span class="s1">shap_vals_all</span><span class="s2">[</span><span class="s4">1</span><span class="s2">]</span>
+
+
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">figure</span><span class="s2">(</span><span class="s1">figsize</span><span class="s2">=(</span><span class="s4">8</span><span class="s2">, </span><span class="s4">6</span><span class="s2">))</span>
+<span class="s1">shap</span><span class="s2">.</span><span class="s1">summary_plot</span><span class="s2">(</span>
+    <span class="s1">shap_pos_all</span><span class="s2">,</span>
+    <span class="s1">X_train_all</span><span class="s2">,</span>
+    <span class="s1">feature_names</span><span class="s2">=</span><span class="s1">all_features</span><span class="s2">,</span>
+    <span class="s1">plot_type</span><span class="s2">=</span><span class="s3">&quot;bar&quot;</span><span class="s2">,</span>
+    <span class="s1">show</span><span class="s2">=</span><span class="s0">False</span>
+<span class="s2">)</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">tight_layout</span><span class="s2">()</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">savefig</span><span class="s2">(</span><span class="s3">&quot;shap_all_features_bar.png&quot;</span><span class="s2">, </span><span class="s1">dpi</span><span class="s2">=</span><span class="s4">150</span><span class="s2">)</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Saved SHAP bar chart on ALL features to shap_all_features_bar.png&quot;</span><span class="s2">)</span>
+
+
+<span class="s1">importance_df </span><span class="s2">= </span><span class="s1">pd</span><span class="s2">.</span><span class="s1">DataFrame</span><span class="s2">({</span>
+    <span class="s3">&quot;feature&quot;</span><span class="s2">: </span><span class="s1">all_features</span><span class="s2">,</span>
+    <span class="s3">&quot;mean_abs_shap&quot;</span><span class="s2">: </span><span class="s1">np</span><span class="s2">.</span><span class="s1">abs</span><span class="s2">(</span><span class="s1">shap_pos_all</span><span class="s2">).</span><span class="s1">mean</span><span class="s2">(</span><span class="s1">axis</span><span class="s2">=</span><span class="s4">0</span><span class="s2">)</span>
+<span class="s2">}).</span><span class="s1">sort_values</span><span class="s2">(</span><span class="s3">&quot;mean_abs_shap&quot;</span><span class="s2">, </span><span class="s1">ascending</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+
+<span class="s1">importance_df</span><span class="s2">.</span><span class="s1">to_csv</span><span class="s2">(</span><span class="s3">&quot;shap_feature_importances_all.csv&quot;</span><span class="s2">, </span><span class="s1">index</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Saved numeric SHAP importances (all) to shap_feature_importances_all.csv&quot;</span><span class="s2">)</span>
+
+
+<span class="s1">k </span><span class="s2">= </span><span class="s4">8</span>
+<span class="s1">topk_features </span><span class="s2">= </span><span class="s1">importance_df</span><span class="s2">[</span><span class="s3">&quot;feature&quot;</span><span class="s2">].</span><span class="s1">iloc</span><span class="s2">[:</span><span class="s1">k</span><span class="s2">].</span><span class="s1">tolist</span><span class="s2">()</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">f&quot;Top </span><span class="s0">{</span><span class="s1">k</span><span class="s0">} </span><span class="s3">features by SHAP importance: </span><span class="s0">{</span><span class="s1">topk_features</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s2">)</span>
+
+
+<span class="s1">X_train_topk </span><span class="s2">= </span><span class="s1">X_train_all</span><span class="s2">[</span><span class="s1">topk_features</span><span class="s2">]</span>
+<span class="s1">X_test_topk  </span><span class="s2">= </span><span class="s1">X_test_all</span><span class="s2">[</span><span class="s1">topk_features</span><span class="s2">]</span>
+
+<span class="s1">reduced_model </span><span class="s2">= </span><span class="s1">RandomForestClassifier</span><span class="s2">(</span>
+    <span class="s1">n_estimators</span><span class="s2">=</span><span class="s4">100</span><span class="s2">,</span>
+    <span class="s1">max_depth</span><span class="s2">=</span><span class="s4">10</span><span class="s2">,</span>
+    <span class="s1">random_state</span><span class="s2">=</span><span class="s4">42</span><span class="s2">,</span>
+    <span class="s1">n_jobs</span><span class="s2">=-</span><span class="s4">1</span>
+<span class="s2">)</span>
+<span class="s1">reduced_model</span><span class="s2">.</span><span class="s1">fit</span><span class="s2">(</span><span class="s1">X_train_topk</span><span class="s2">, </span><span class="s1">y_train</span><span class="s2">)</span>
+
+<span class="s1">y_proba_reduced </span><span class="s2">= </span><span class="s1">reduced_model</span><span class="s2">.</span><span class="s1">predict_proba</span><span class="s2">(</span><span class="s1">X_test_topk</span><span class="s2">)[:, </span><span class="s4">1</span><span class="s2">]</span>
+<span class="s1">y_pred_reduced  </span><span class="s2">= (</span><span class="s1">y_proba_reduced </span><span class="s2">&gt;= </span><span class="s4">0.5</span><span class="s2">).</span><span class="s1">astype</span><span class="s2">(</span><span class="s1">int</span><span class="s2">)</span>
+
+<span class="s1">auc_reduced  </span><span class="s2">= </span><span class="s1">roc_auc_score</span><span class="s2">(</span><span class="s1">y_test</span><span class="s2">, </span><span class="s1">y_proba_reduced</span><span class="s2">)</span>
+<span class="s1">prec_reduced </span><span class="s2">= </span><span class="s1">precision_score</span><span class="s2">(</span><span class="s1">y_test</span><span class="s2">, </span><span class="s1">y_pred_reduced</span><span class="s2">)</span>
+
+<span class="s1">print</span><span class="s2">(</span><span class="s3">f&quot;Reduced‐feature (top </span><span class="s0">{</span><span class="s1">k</span><span class="s0">}</span><span class="s3">) model metrics:&quot;</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">f&quot;  AUC-ROC:   </span><span class="s0">{</span><span class="s1">auc_reduced</span><span class="s0">:</span><span class="s3">.3f</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">f&quot;  Precision: </span><span class="s0">{</span><span class="s1">prec_reduced</span><span class="s0">:</span><span class="s3">.3f</span><span class="s0">}</span><span class="s3">&quot;</span><span class="s2">)</span>
+
+
+<span class="s1">explainer_topk </span><span class="s2">= </span><span class="s1">shap</span><span class="s2">.</span><span class="s1">TreeExplainer</span><span class="s2">(</span><span class="s1">reduced_model</span><span class="s2">)</span>
+<span class="s1">shap_vals_topk </span><span class="s2">= </span><span class="s1">explainer_topk</span><span class="s2">.</span><span class="s1">shap_values</span><span class="s2">(</span><span class="s1">X_test_topk</span><span class="s2">)[</span><span class="s4">1</span><span class="s2">]</span>
+
+
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">figure</span><span class="s2">(</span><span class="s1">figsize</span><span class="s2">=(</span><span class="s4">8</span><span class="s2">, </span><span class="s4">6</span><span class="s2">))</span>
+<span class="s1">shap</span><span class="s2">.</span><span class="s1">summary_plot</span><span class="s2">(</span>
+    <span class="s1">shap_vals_topk</span><span class="s2">,</span>
+    <span class="s1">X_test_topk</span><span class="s2">,</span>
+    <span class="s1">feature_names</span><span class="s2">=</span><span class="s1">topk_features</span><span class="s2">,</span>
+    <span class="s1">plot_type</span><span class="s2">=</span><span class="s3">&quot;bar&quot;</span><span class="s2">,</span>
+    <span class="s1">show</span><span class="s2">=</span><span class="s0">False</span>
+<span class="s2">)</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">tight_layout</span><span class="s2">()</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">savefig</span><span class="s2">(</span><span class="s3">&quot;shap_topk_bar.png&quot;</span><span class="s2">, </span><span class="s1">dpi</span><span class="s2">=</span><span class="s4">150</span><span class="s2">)</span>
+<span class="s1">plt</span><span class="s2">.</span><span class="s1">close</span><span class="s2">()</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Saved SHAP bar chart (top k features) to shap_topk_bar.png&quot;</span><span class="s2">)</span>
+
+
+<span class="s1">reduced_importances </span><span class="s2">= </span><span class="s1">pd</span><span class="s2">.</span><span class="s1">DataFrame</span><span class="s2">({</span>
+    <span class="s3">&quot;feature&quot;</span><span class="s2">: </span><span class="s1">topk_features</span><span class="s2">,</span>
+    <span class="s3">&quot;mean_abs_shap&quot;</span><span class="s2">: </span><span class="s1">np</span><span class="s2">.</span><span class="s1">abs</span><span class="s2">(</span><span class="s1">shap_vals_topk</span><span class="s2">).</span><span class="s1">mean</span><span class="s2">(</span><span class="s1">axis</span><span class="s2">=</span><span class="s4">0</span><span class="s2">)</span>
+<span class="s2">}).</span><span class="s1">sort_values</span><span class="s2">(</span><span class="s3">&quot;mean_abs_shap&quot;</span><span class="s2">, </span><span class="s1">ascending</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+
+<span class="s1">reduced_importances</span><span class="s2">.</span><span class="s1">to_csv</span><span class="s2">(</span><span class="s3">&quot;shap_feature_importances_topk.csv&quot;</span><span class="s2">, </span><span class="s1">index</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Saved numeric SHAP importances (topk) to shap_feature_importances_topk.csv&quot;</span><span class="s2">)</span>
+
+
+<span class="s1">X_all_topk </span><span class="s2">= </span><span class="s1">X_all</span><span class="s2">[</span><span class="s1">topk_features</span><span class="s2">]</span>
+<span class="s1">df</span><span class="s2">[</span><span class="s3">&quot;risk_score&quot;</span><span class="s2">] = </span><span class="s1">reduced_model</span><span class="s2">.</span><span class="s1">predict_proba</span><span class="s2">(</span><span class="s1">X_all_topk</span><span class="s2">)[:, </span><span class="s4">1</span><span class="s2">]</span>
+<span class="s1">df</span><span class="s2">[</span><span class="s3">&quot;risk_rank&quot;</span><span class="s2">]  = </span><span class="s1">df</span><span class="s2">[</span><span class="s3">&quot;risk_score&quot;</span><span class="s2">].</span><span class="s1">rank</span><span class="s2">(</span><span class="s1">method</span><span class="s2">=</span><span class="s3">&quot;first&quot;</span><span class="s2">, </span><span class="s1">ascending</span><span class="s2">=</span><span class="s0">False</span><span class="s2">).</span><span class="s1">astype</span><span class="s2">(</span><span class="s1">int</span><span class="s2">)</span>
+
+<span class="s1">out </span><span class="s2">= </span><span class="s1">df</span><span class="s2">[[</span>
+    <span class="s3">&quot;LSOA code&quot;</span><span class="s2">,</span><span class="s3">&quot;year&quot;</span><span class="s2">,</span><span class="s3">&quot;Month_Num&quot;</span><span class="s2">,</span><span class="s3">&quot;risk_score&quot;</span><span class="s2">,</span><span class="s3">&quot;risk_rank&quot;</span>
+<span class="s2">]].</span><span class="s1">sort_values</span><span class="s2">(</span><span class="s3">&quot;risk_rank&quot;</span><span class="s2">)</span>
+
+<span class="s1">out</span><span class="s2">.</span><span class="s1">to_csv</span><span class="s2">(</span><span class="s3">&quot;robbery_risk_by_lsoa.csv&quot;</span><span class="s2">, </span><span class="s1">index</span><span class="s2">=</span><span class="s0">False</span><span class="s2">)</span>
+<span class="s1">print</span><span class="s2">(</span><span class="s3">&quot;Saved risk summary to robbery_risk_by_lsoa.csv&quot;</span><span class="s2">)</span></pre>
+</body>
+</html>
