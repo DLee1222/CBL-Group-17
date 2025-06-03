@@ -40,7 +40,6 @@ dropdown_options = [
     for _, row in sorted_df.iterrows()
 ]
 def generate_heatmap( df, geojson, zoom, center = {"lat": 51.5074, "lon": -0.1278} ):
-
     return px.choropleth_map(
         df,
         geojson=geojson,
@@ -65,6 +64,7 @@ app.layout = html.Div(
         "padding": "20px",
     },
     children=[
+        dcc.Store(id="map-toggle", data={"show_alt": False}),
         html.Div(
             style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px'},
             children=[
@@ -115,15 +115,14 @@ app.layout = html.Div(
                     ],
                 ),
                 html.Div(
-                    style = {"backgroundColor": "#f5f5f5", "flexDirection": "column",},
+                    style = {"display': 'flex', 'backgroundColor": "f5f5f5", "flexDirection": "column", 'height':'94vh', 'width':'36.5vw'},
                     children = [
                         html.Div(
                             style={
                                 "display": "flex",
                                 "flexDirection": "column",
                                 "gap": "10px",
-                                "width": "35.5vw",
-                                "height": "20vh",
+                                "height": "35vh",
                                 "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
                                 "borderRadius": "8px",
                                 'backgroundColor': "white",
@@ -131,7 +130,32 @@ app.layout = html.Div(
                                 "padding": "10px",
                             },
                             children=[
-
+                                html.Div(
+                                    style={
+                                        "display": "flex",
+                                        "flexDirection": "row",
+                                        "gap": "10px"},
+                                    children =[
+                                        html.Div(
+                                            children =[
+                                                html.Label("Filter by Borough"),
+                                                dcc.Dropdown(id='borough-dropdown',
+                                                options=[{"label": b, "value": b} for b in sorted(burglary_df['Borough'].unique())],
+                                                placeholder='Select a Borough',
+                                                style={"width": "100%"}),
+                                            ], style={"width": "50%"}
+                                        ),
+                                        html.Div(
+                                            children =[
+                                                html.Label("Filter by Ward"),
+                                                dcc.Dropdown(id='ward-dropdown',
+                                                options=[],
+                                                placeholder='Select a Ward',
+                                                style={"width": "100%"})
+                                            ], style={"width": "50%"}
+                                        )
+                                    ],
+                                ),
                                 html.Label("Search LSOA"),
                                 dcc.Dropdown(
                                     id='lsoa-dropdown',
@@ -152,21 +176,56 @@ app.layout = html.Div(
                                         "cursor": "pointer"
                                     }
                                 ),
+                                html.Button(
+                                    "Show burglary prediction Map",
+                                    id=" burglary prediction button",
+                                    n_clicks=0,
+                                    style={
+                                        "padding": "10px",
+                                        "backgroundColor": "#0275d8",
+                                        "color": "white",
+                                        "border": "none",
+                                        "borderRadius": "5px",
+                                        "cursor": "pointer"
+                                    },
+                                ),
                                 html.Div(id='search-feedback', style={"color": "black"}),
                             ],
-
                         ),
                         html.Div (
                             style = {
                                 "backgroundColor":"white",
-                                "height": "70vh",
+                                "height": "55vh",
                                 'marginTop': '10px',
                                 "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
                                 "borderRadius": "8px",
                                 "overflow": "hidden",
+                                "flexDirection": "column",
                             },
                             children=[
-                                dcc.Graph(id='burglary-trend', style={}, config={'displayModeBar': False}),
+                                html.H2(
+                                    id='trend-title',
+                                    style={
+                                        "textAlign": "center",
+                                        "margin": "10px 0 0 0",
+                                        "padding": "5px 10px",
+                                        "fontSize": "1.4rem",
+                                        "fontWeight": "600",
+                                        "color": "#2c3e50",
+                                        "borderBottom": "1px solid #ddd"
+                                    }
+                                ),
+                                dcc.Graph(
+                                    id='burglary-trend',
+                                    style={
+                                        "flex": "1",
+                                        "padding": "0px",
+                                        "margin": "0px",
+                                        "height": "100%",
+                                        "width": "100%"
+                                    },
+                                    config={'displayModeBar': False}
+                                )
                             ],
                         ),
                     ],
@@ -179,18 +238,54 @@ app.layout = html.Div(
     ]
 
 )
+#Callback to update the ward dropdown options based on the borough filter.
+@app.callback(
+    Output('ward-dropdown', 'options'),
+    Input('borough-dropdown', 'value')
+)
+def update_ward_options(selected_borough):
+    if not selected_borough:
+        return []
+
+    filtered_df = burglary_df[burglary_df['Borough'] == selected_borough]
+    #Once the ward column is added to the final_dataset file, this section will be enabled.
+    # options =[
+    #     {"label": ward, "value": ward}
+    #     for ward in sorted(filtered_df['Ward'].dropna().unique())
+    # ]
+    #return options
+
+#callback to update the LSOA dropdown options based on the ward and borough filter.
+@app.callback(
+    Output('lsoa-dropdown', 'options'),
+    Input('borough-dropdown', 'value'),
+    Input('ward-dropdown', 'value')
+)
+def update_lsoa_options(selected_borough, selected_ward):
+    filtered_df = burglary_df.copy()
+
+    if selected_borough:
+        filtered_df = burglary_df[burglary_df['Borough'] == selected_borough]
+    if selected_ward:
+        pass
+        #this will be enabled when the final_dataset file contains ward information for each LSOA.
+        #filtered_df= burglary_df[burglary_df['Ward'] == selected_ward]
+
+    options = [
+        {"label": f"{row['Borough']} - {row['LSOA code']}", "value": row["LSOA code"]}
+        for _, row in filtered_df.drop_duplicates(subset=["LSOA code"]).iterrows()
+    ]
+    return options
 
 
-
-
-
-# Callback
+#Call back for the heatmap, search feedback, LSOA plot and its header
 @app.callback(
     Output('map', 'figure'),
     Output('search-feedback', 'children'),
     Output('burglary-trend', 'figure'),
     Output('year-slider', 'value'),
     Output('lsoa-dropdown', 'value'),
+    Output('trend-title', 'children'),
     Input('lsoa-dropdown', 'value'),
     Input('reset-button', 'n_clicks'),
     Input('year-slider', 'value')
@@ -214,19 +309,19 @@ def zoom_to_lsoa(code, n_clicks, year_range):
 
 
     if not code:
-        empty_trend = go.Figure().update_layout(title="Select an LSOA to see yearly burglary trends")
-        return range_map, "", empty_trend, year_range, None
+        empty_trend = go.Figure()
+        return range_map, "", empty_trend, year_range, None, 'Select an LSOA to see yearly burglary trends'
 
     triggered_id = ctx.triggered_id
     if triggered_id == 'reset-button' or not code:
-        empty_fig = go.Figure().update_layout(title="Select an LSOA to see yearly burglary trends")
-        return heatmap, "", empty_fig, year_range, None
+        empty_fig = go.Figure()
+        return heatmap, "",  empty_fig, year_range, None, 'Select an LSOA to see yearly burglary trends'
 
     code = code.strip().upper()
 
     if code not in data_lookup:
-        empty_fig = go.Figure().update_layout(title="No data available")
-        return range_map, "LSOA code not found.", empty_fig, year_range, code
+        empty_fig = go.Figure()
+        return range_map, "LSOA code not found.", empty_fig, year_range, code, 'Select an LSOA to see yearly burglary trends'
 
     #This section finds the polygon for the selected LSOA code
     polygon = None
@@ -235,8 +330,8 @@ def zoom_to_lsoa(code, n_clicks, year_range):
             polygon = f
             break
     if polygon is None:
-        empty_fig = go.Figure().update_layout(title="No polygon found")
-        return heatmap, f"No geometry polygon for LSOA code {code}.", empty_fig, year_range, code
+        empty_fig = go.Figure()
+        return heatmap, f"No geometry polygon for LSOA code {code}.", empty_fig, year_range, code, 'Select an LSOA to see yearly burglary trends'
 
     coordinates = []
 
@@ -279,13 +374,12 @@ def zoom_to_lsoa(code, n_clicks, year_range):
     trend = px.bar(
         trend_df,
         x='Year', y='Burglary_Count',
-        title=f"Yearly Burglary Trends for {code}",
         labels={'Burglary_Count': 'Burglaries'},
-        text='Burglary_Count'
+        text='Burglary_Count',
+        color_discrete_sequence = ['#4A90E2']
     )
-    trend.update_traces(textposition='outside')
-    trend.update_layout(uniformtext_minsize=5, uniformtext_mode='hide')
-    return updated_heatmap, feedback, trend, year_range, code
+    trend.update_traces(textposition='outside', marker_line_width=0, opacity=0.85)
+    return updated_heatmap, feedback, trend, year_range, code, f'yearly burglary trend for LSOA {code}'
 
 if __name__ == '__main__':
     app.run(debug=False)
