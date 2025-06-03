@@ -11,16 +11,28 @@ with open('london_lsoa.geojson') as f:
     lsoa_geojson = json.load(f)
 
 monthly_df = pd.read_csv('final_dataset.csv')
-lookup_df = pd.read_csv(LSOA_(2021)_to_Electoral_Ward_(2024)_to_LAD_(2024)_Best_Fit_Lookup_in_EW (2).csv)
+lookup_df = pd.read_csv("LSOA_(2021)_to_Electoral_Ward_(2024)_to_LAD_(2024)_Best_Fit_Lookup_in_EW (2).csv")
+london_boroughs = [
+    'Barking and Dagenham', 'Barnet', 'Bexley', 'Brent', 'Bromley', 'Camden', 'Croydon',
+    'Ealing', 'Enfield', 'Greenwich', 'Hackney', 'Hammersmith and Fulham', 'Haringey',
+    'Harrow', 'Havering', 'Hillingdon', 'Hounslow', 'Islington', 'Kensington and Chelsea',
+    'Kingston upon Thames', 'Lambeth', 'Lewisham', 'Merton', 'Newham', 'Redbridge',
+    'Richmond upon Thames', 'Southwark', 'Sutton', 'Tower Hamlets', 'Waltham Forest',
+    'Wandsworth', 'Westminster', 'City of London'
+]
 
-# Lookup mapping
-simplified_lookup = lookup_df[["LSOA21CD", "WD24CD", "WD24NM"]].dropna()
-lsoa_to_ward = simplified_lookup.set_index("LSOA21CD")[["WD24CD", "WD24NM"]].to_dict(orient="index")
+# Filter lookup to only include London
+lookup_df = lookup_df[lookup_df['LAD24NM'].isin(london_boroughs)]
+
+# Then recreate the simplified lookup
+simplified_lookup = lookup_df[["LSOA21CD", "WD24CD", "WD24NM", "LAD24NM"]].dropna()
+lsoa_to_ward = simplified_lookup.set_index("LSOA21CD")[["WD24CD", "WD24NM", "LAD24NM"]].to_dict(orient="index")
 ward_to_lsoas = simplified_lookup.groupby("WD24CD")["LSOA21CD"].apply(list).to_dict()
+ward_to_borough = simplified_lookup.set_index("WD24CD")["LAD24NM"].to_dict()
 
 burglary_df = monthly_df.groupby(['LSOA code', 'Borough'])['Burglary_Count'].sum().reset_index()
-burglary_df['Ward Code'] = burglary_df['LSOA code'].map(lambda x: lsoa_to_ward.get(x, {}).get('WD24CD'))  # Add ward code
-ward_totals = burglary_df.groupby('Ward Code')['Burglary_Count'].sum().to_dict()  # Precompute total burglaries per ward
+burglary_df['Ward Code'] = burglary_df['LSOA code'].map(lambda x: lsoa_to_ward.get(x, {}).get('WD24CD')) 
+ward_totals = burglary_df.groupby('Ward Code')['Burglary_Count'].sum().to_dict()  
 
 data_lookup = burglary_df.set_index('LSOA code').to_dict(orient='index')
 yearly_burglary = monthly_df.groupby(['LSOA code', 'Year'])['Burglary_Count'].sum().reset_index()
@@ -48,7 +60,6 @@ def generate_heatmap(df, geojson, zoom, center={"lat": 51.5074, "lon": -0.1278})
     )
 
 heatmap = generate_heatmap(burglary_df, lsoa_geojson, zoom=8.85)
-
 app.layout = html.Div(
     style={"display": "flex", "padding": "20px", "fontFamily": "'Segoe UI', sans-serif"},
     children=[
@@ -71,10 +82,14 @@ app.layout = html.Div(
                                                                          "margin": 0, "pointerEvents": "none",
                                                                          "color": "rgba(0,0,0,0.8)",
                                                                          "fontSize": "1.50rem"}),
-                        dcc.RangeSlider(id='year-slider', min=2011, max=2025, step=1, value=[2011, 2025],
-                                        marks={year: str(year) for year in range(2011, 2026)},
-                                        tooltip={"placement": "bottom", "always_visible": True},
-                                        allowCross=False, updatemode='mouseup'),
+
+                        dcc.RangeSlider(
+                            id='year-slider', min=2011, max=2025, step=1, value=[2011, 2025],
+                            marks={year: str(year) for year in range(2011, 2026)},
+                            tooltip={"placement": "bottom", "always_visible": True},
+                            allowCross=False, updatemode='mouseup'
+                        ),
+
                         html.Button(
                             "Show burglary prediction Map",
                             id=" burglary prediction button",
@@ -93,19 +108,42 @@ app.layout = html.Div(
                                    "width": "35.5vw", "height": "40vh", "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
                                    "borderRadius": "8px", 'backgroundColor': "white", "padding": "10px"},
                             children=[
-                                html.Label("Filter by Borough"),
-                                dcc.Dropdown(id='borough-dropdown',
-                                             options=[{"label": b, "value": b} for b in sorted(burglary_df['Borough'].unique())],
-                                             placeholder='Select a Borough', style={"width": "100%"}),
+
+                                
+                                html.Div(
+                                    style={"display": "flex", "flexDirection": "row", "gap": "10px"},
+                                    children=[
+                                        html.Div([
+                                            html.Label("Filter by Borough"),
+                                            dcc.Dropdown(id='borough-dropdown',
+                                                         options=[{"label": b, "value": b} for b in sorted(burglary_df['Borough'].unique())],
+                                                         placeholder='Select a Borough',
+                                                         style={"width": "100%"})
+                                        ], style={"width": "50%"}),
+
+                                        html.Div([
+                                            html.Label("Filter by Ward"),
+                                            dcc.Dropdown(id='ward-dropdown',
+                                                         options=[],  # dynamically updated
+                                                         placeholder='Select a Ward',
+                                                         style={"width": "100%"})
+                                        ], style={"width": "50%"})
+                                    ]
+                                ),
+
+                                # LSOA filter below
                                 html.Label("Search LSOA"),
                                 dcc.Dropdown(id='lsoa-dropdown', options=dropdown_options,
                                              placeholder='Select an LSOA code', style={"width": "100%"}),
+
                                 html.Button("Reset Map", id="reset-button", n_clicks=0,
                                             style={"padding": "10px", "marginTop": "10px",
                                                    "backgroundColor": "#d9534f", "color": "white",
                                                    "border": "none", "borderRadius": "5px",
                                                    "cursor": "pointer"}),
+
                                 html.Div(id='search-feedback', style={"color": "black", "marginTop": "5px", "fontWeight": "500"}),
+
                             ],
                         ),
                         html.Div(
@@ -117,6 +155,7 @@ app.layout = html.Div(
                                                                  "padding": "5px 10px", "fontSize": "1.4rem",
                                                                  "fontWeight": "600", "color": "#2c3e50",
                                                                  "borderBottom": "1px solid #ddd"}),
+
                                 dcc.Graph(id='burglary-trend', style={"flex": "1", "padding": "0", "margin": "0"},
                                           config={'displayModeBar': False}),
                             ],
@@ -130,14 +169,32 @@ app.layout = html.Div(
 
 
 @app.callback(
-    Output('lsoa-dropdown', 'options'),
+    Output('ward-dropdown', 'options'),
     Input('borough-dropdown', 'value')
 )
-def update_lsoa_options(selected_borough):
+def update_ward_options(selected_borough):
     if not selected_borough:
-        return dropdown_options
-    return [{"label": f"{row['Borough']} - {row['LSOA code']}", "value": row["LSOA code"]}
-            for _, row in sorted_df.iterrows() if row["Borough"] == selected_borough]
+        return []
+    filtered = lookup_df[lookup_df["LAD24NM"] == selected_borough]
+    ward_names = filtered[['WD24CD', 'WD24NM']].dropna().drop_duplicates()
+    return [{"label": name, "value": code} for code, name in ward_names[['WD24CD', 'WD24NM']].values]
+
+@app.callback(
+    Output('lsoa-dropdown', 'options'),
+    Input('borough-dropdown', 'value'),
+    Input('ward-dropdown', 'value')
+)
+def update_lsoa_options(selected_borough, selected_ward):
+    filtered = lookup_df.copy()
+    if selected_borough:
+        filtered = filtered[filtered["LAD24NM"] == selected_borough]
+    if selected_ward:
+        filtered = filtered[filtered["WD24CD"] == selected_ward]
+    return [
+        {"label": f"{row['LAD24NM']} - {row['LSOA21CD']}", "value": row["LSOA21CD"]}
+        for _, row in filtered.drop_duplicates(subset=['LSOA21CD']).iterrows()
+    ]
+
 
 @app.callback(
     Output('map', 'figure'),
@@ -243,6 +300,8 @@ def zoom_to_lsoa(code, n_clicks, year_range):
                         uniformtext_minsize=8, uniformtext_mode='hide')
 
     return updated_heatmap, feedback, trend, year_range, code, f"Yearly Burglary Trends for {code}"
+
+
 
 if __name__ == '__main__':
     app.run(debug=False)
