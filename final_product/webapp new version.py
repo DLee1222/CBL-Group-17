@@ -7,7 +7,7 @@ from dash.dependencies import Input, Output
 
 # --- Load Data ---
 app = Dash(__name__)
-with open(r"C:\\Users\\20234513\\Downloads\\london_lsoa (5).geojson") as f:
+with open('london_lsoa.geojson') as f:
     lsoa_geojson = json.load(f)
 
 monthly_df = pd.read_csv(r"C:\\Users\\20234513\\Downloads\\final_dataset.csv")
