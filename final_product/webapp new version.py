@@ -64,14 +64,7 @@ app.layout = html.Div(
                     children=[
                         dcc.Graph(id="map", figure=heatmap, style={"width": "100%", "height": "100%"},
                                   config={"displayModeBar": True, "scrollZoom": True}),
-                        html.Button(
-                            "Show burglary prediction Map",
-                            id=" burglary prediction button",
-                            n_clicks=0,
-                            style={"padding": "10px", "margin": "10px auto", "width": "90%",
-                                   "backgroundColor": "#0275d8", "color": "white",
-                                   "border": "none", "borderRadius": "5px", "cursor": "pointer"},
-                        ),
+
                         html.H1("LSOA Burglary Heatmap 2011-2025", style={"position": "absolute",
                                                                          "top": "7.5px", "left": "50%",
                                                                          "transform": "translateX(-50%)",
@@ -82,6 +75,14 @@ app.layout = html.Div(
                                         marks={year: str(year) for year in range(2011, 2026)},
                                         tooltip={"placement": "bottom", "always_visible": True},
                                         allowCross=False, updatemode='mouseup'),
+                        html.Button(
+                            "Show burglary prediction Map",
+                            id=" burglary prediction button",
+                            n_clicks=0,
+                            style={"padding": "10px", "margin": "10px auto", "width": "90%",
+                                   "backgroundColor": "#0275d8", "color": "white",
+                                   "border": "none", "borderRadius": "5px", "cursor": "pointer"},
+                        ),
                     ],
                 ),
                 html.Div(
