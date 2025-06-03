@@ -10,7 +10,7 @@ app = Dash(__name__)
 with open('london_lsoa.geojson') as f:
     lsoa_geojson = json.load(f)
 
-monthly_df = pd.read_csv(r"C:\\Users\\20234513\\Downloads\\final_dataset.csv")
+monthly_df = pd.read_csv('final_dataset.csv')
 lookup_df = pd.read_csv(r"C:\\Users\\20234513\\Downloads\\LSOA_(2021)_to_Electoral_Ward_(2024)_to_LAD_(2024)_Best_Fit_Lookup_in_EW (2).csv")
 
 # Lookup mapping
