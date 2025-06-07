@@ -20,11 +20,11 @@ with open('london_lsoa.geojson') as f:
     lsoa_geojson = json.load(f)
 
 
-monthly_df = pd.read_csv('final_dataset_MERGED.csv')
+monthly_df = pd.read_csv('final_dataset_with_ward.csv')
 
 
 burglary_df = (
-    monthly_df.groupby(['LSOA code', 'Borough', 'Ward Name'])
+    monthly_df.groupby(['LSOA code', 'Borough', 'WD24NM'])
     ['Burglary_Count'].sum()
     .reset_index()
 )
@@ -259,7 +259,7 @@ def update_ward_options(selected_borough):
    
     options = [
          {"label":ward , "value": ward}
-         for ward in sorted(filtered_df['Ward Name'].dropna().unique())]
+         for ward in sorted(filtered_df['WD24NM'].dropna().unique())]
     return options
 
 #callback to update the LSOA dropdown options based on the ward and borough filter.
@@ -276,7 +276,7 @@ def update_lsoa_options(selected_borough, selected_ward):
     if selected_ward:
         pass
         #this will be enabled when the final_dataset file contains ward information for each LSOA.
-        filtered_df= burglary_df[burglary_df['Ward Name'] == selected_ward]
+        filtered_df= burglary_df[burglary_df['WD24NM'] == selected_ward]
 
     options = [
         {"label": f"{row['Borough']} - {row['LSOA code']}", "value": row["LSOA code"]}
