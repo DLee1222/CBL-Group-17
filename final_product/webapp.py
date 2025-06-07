@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Jun  7 13:02:16 2025
+
+@author: 20234513
+"""
+
 import json
 import pandas as pd
 import plotly.express as px
@@ -13,11 +20,11 @@ with open('london_lsoa.geojson') as f:
     lsoa_geojson = json.load(f)
 
 
-monthly_df = pd.read_csv('final_dataset.csv')
+monthly_df = pd.read_csv('final_dataset_MERGED.csv')
 
 
 burglary_df = (
-    monthly_df.groupby(['LSOA code', 'Borough'])
+    monthly_df.groupby(['LSOA code', 'Borough', 'Ward Name'])
     ['Burglary_Count'].sum()
     .reset_index()
 )
@@ -243,17 +250,17 @@ app.layout = html.Div(
     Output('ward-dropdown', 'options'),
     Input('borough-dropdown', 'value')
 )
+ #Once the ward column is added to the final_dataset file, this section will be enabled.
 def update_ward_options(selected_borough):
     if not selected_borough:
         return []
 
     filtered_df = burglary_df[burglary_df['Borough'] == selected_borough]
-    #Once the ward column is added to the final_dataset file, this section will be enabled.
-    # options =[
-    #     {"label": ward, "value": ward}
-    #     for ward in sorted(filtered_df['Ward'].dropna().unique())
-    # ]
-    #return options
+   
+    options = [
+         {"label":ward , "value": ward}
+         for ward in sorted(filtered_df['Ward Name'].dropna().unique())]
+    return options
 
 #callback to update the LSOA dropdown options based on the ward and borough filter.
 @app.callback(
@@ -269,7 +276,7 @@ def update_lsoa_options(selected_borough, selected_ward):
     if selected_ward:
         pass
         #this will be enabled when the final_dataset file contains ward information for each LSOA.
-        #filtered_df= burglary_df[burglary_df['Ward'] == selected_ward]
+        filtered_df= burglary_df[burglary_df['Ward Name'] == selected_ward]
 
     options = [
         {"label": f"{row['Borough']} - {row['LSOA code']}", "value": row["LSOA code"]}
@@ -383,3 +390,5 @@ def zoom_to_lsoa(code, n_clicks, year_range):
 
 if __name__ == '__main__':
     app.run(debug=False)
+    
+
