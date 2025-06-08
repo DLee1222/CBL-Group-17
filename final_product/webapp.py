@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Sat Jun  7 13:02:16 2025
-
-@author: 20234513
-"""
-
 import json
 import pandas as pd
 import plotly.express as px
@@ -13,14 +6,18 @@ import dash_leaflet as dl
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 
+
 app = Dash(__name__)
 
 
-with open('london_lsoa.geojson') as f:
-    lsoa_geojson = json.load(f)
+with open('london_lsoa21.geojson') as f:
+    lsoa21_geojson = json.load(f)
+
+with open('london_lsoa11.geojson') as f:
+    lsoa11_geojson = json.load(f)
 
 
-monthly_df = pd.read_csv('final_dataset_with_ward.csv')
+monthly_df = pd.read_csv('final_dataset.csv')
 
 
 burglary_df = (
@@ -46,12 +43,12 @@ dropdown_options = [
     }
     for _, row in sorted_df.iterrows()
 ]
-def generate_heatmap( df, geojson, zoom, center = {"lat": 51.5074, "lon": -0.1278} ):
+def generate_heatmap( df, geojson, zoom, feature_key, center = {"lat": 51.5074, "lon": -0.1278} ):
     return px.choropleth_map(
         df,
         geojson=geojson,
         locations='LSOA code',
-        featureidkey='properties.LSOA11CD',
+        featureidkey= feature_key,
         color='Burglary_Count',
         color_continuous_scale="viridis",
         range_color=(df['Burglary_Count'].quantile(0.05), df['Burglary_Count'].quantile(0.95)),
@@ -62,7 +59,7 @@ def generate_heatmap( df, geojson, zoom, center = {"lat": 51.5074, "lon": -0.127
         labels={'Burglary_Count': 'Burglary Count'},
     )
 
-heatmap = generate_heatmap(burglary_df, lsoa_geojson, zoom=8.85)
+heatmap = generate_heatmap(burglary_df, lsoa11_geojson, zoom=8.85, feature_key="properties.LSOA11CD" )
 
 # App Layout
 app.layout = html.Div(
@@ -250,17 +247,17 @@ app.layout = html.Div(
     Output('ward-dropdown', 'options'),
     Input('borough-dropdown', 'value')
 )
- #Once the ward column is added to the final_dataset file, this section will be enabled.
 def update_ward_options(selected_borough):
+    wards =burglary_df.copy()
     if not selected_borough:
-        return []
+        wards = burglary_df['WD24NM'].dropna().unique()
 
-    filtered_df = burglary_df[burglary_df['Borough'] == selected_borough]
-   
-    options = [
-         {"label":ward , "value": ward}
-         for ward in sorted(filtered_df['WD24NM'].dropna().unique())]
-    return options
+    if selected_borough:
+        filtered_df = burglary_df[burglary_df['Borough'] == selected_borough]
+        wards = filtered_df['WD24NM'].dropna().unique()
+
+    return [{"label": ward, "value": ward} for ward in sorted(wards)]
+
 
 #callback to update the LSOA dropdown options based on the ward and borough filter.
 @app.callback(
@@ -274,9 +271,7 @@ def update_lsoa_options(selected_borough, selected_ward):
     if selected_borough:
         filtered_df = burglary_df[burglary_df['Borough'] == selected_borough]
     if selected_ward:
-        pass
-        #this will be enabled when the final_dataset file contains ward information for each LSOA.
-        filtered_df= burglary_df[burglary_df['WD24NM'] == selected_ward]
+        filtered_df = filtered_df[filtered_df['WD24NM'] == selected_ward]
 
     options = [
         {"label": f"{row['Borough']} - {row['LSOA code']}", "value": row["LSOA code"]}
@@ -312,7 +307,10 @@ def zoom_to_lsoa(code, n_clicks, year_range):
         .sum()
         .reset_index()
     )
-    range_map = generate_heatmap(df_map, lsoa_geojson, zoom=8.85)
+    geojson = lsoa21_geojson if start_year >= 2021 else lsoa11_geojson
+    lsoa_code_key = 'properties.LSOA21CD' if start_year >= 2021 else 'properties.LSOA11CD'
+
+    range_map = generate_heatmap(df_map, geojson, feature_key=lsoa_code_key, zoom=8.85)
 
 
     if not code:
@@ -322,7 +320,7 @@ def zoom_to_lsoa(code, n_clicks, year_range):
     triggered_id = ctx.triggered_id
     if triggered_id == 'reset-button' or not code:
         empty_fig = go.Figure()
-        return heatmap, "",  empty_fig, year_range, None, 'Select an LSOA to see yearly burglary trends'
+        return range_map, "",  empty_fig, year_range, None, 'Select an LSOA to see yearly burglary trends'
 
     code = code.strip().upper()
 
@@ -331,9 +329,15 @@ def zoom_to_lsoa(code, n_clicks, year_range):
         return range_map, "LSOA code not found.", empty_fig, year_range, code, 'Select an LSOA to see yearly burglary trends'
 
     #This section finds the polygon for the selected LSOA code
+
+    if geojson is lsoa21_geojson:
+        lsoa_code = 'LSOA21CD'
+    else:
+        lsoa_code = 'LSOA11CD'
+
     polygon = None
-    for f in lsoa_geojson['features']:
-        if f['properties']['LSOA11CD'] == code:
+    for f in geojson['features']:
+        if f['properties'].get(lsoa_code) == code:
             polygon = f
             break
     if polygon is None:
@@ -355,7 +359,7 @@ def zoom_to_lsoa(code, n_clicks, year_range):
     latitude = [pt[1] for pt in coordinates]
     center = {"lon": sum(longitude) / len(longitude), "lat": sum(latitude) / len(latitude)}
 
-    updated_heatmap = generate_heatmap(df_map, lsoa_geojson, 12, center)
+    updated_heatmap = generate_heatmap(df_map, geojson, zoom=12, feature_key=lsoa_code_key, center = center)
 
     lons, lats = zip(*coordinates)
 
@@ -390,5 +394,3 @@ def zoom_to_lsoa(code, n_clicks, year_range):
 
 if __name__ == '__main__':
     app.run(debug=False)
-    
-
