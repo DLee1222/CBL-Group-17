@@ -93,7 +93,7 @@ app.layout = html.Div(
                         ),
 
                         html.H1(
-                            "LSOA Burglary Heatmap 2011-2025",
+                            id ="map-title",
                             style={
                                 "position": "absolute",
                                 "top": "10px",
@@ -242,6 +242,18 @@ app.layout = html.Div(
     ]
 
 )
+
+@app.callback(
+    Output("map-title", "children"),
+    Input("year-slider", "value"),
+)
+def update_map_title(year_range):
+    start_year, end_year = year_range
+    if start_year == end_year:
+        return f"LSOA Burglary Heatmap {start_year}"
+    else:
+        return f"LSOA Burglary Heatmap {start_year} - {end_year}"
+
 #Callback to update the ward dropdown options based on the borough filter.
 @app.callback(
     Output('ward-dropdown', 'options'),
