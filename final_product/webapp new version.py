@@ -20,9 +20,8 @@ with open('london_lsoa11.geojson') as f:
 
 monthly_df = pd.read_csv('final_dataset.csv')
 
-prediction = pd.read_csv('C:/Users/20234513/OneDrive - TU Eindhoven/CBL Folder/Modified_March_2025_Burglary_Predictions.csv')
-# Prepare prediction map figure (rename column to match heatmap function)
-# Prepare prediction map figure (rename column to match heatmap function)
+prediction = pd.read_csv('Modified_March_2025_Burglary_Predictions')
+
 
 
 
@@ -308,7 +307,6 @@ main_layout = html.Div(
 
 )
 
-# Prepare prediction map figure (rename column to match heatmap function)
 # layout of the main webapp
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
