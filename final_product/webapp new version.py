@@ -5,9 +5,10 @@ from dash import Dash, html, dcc, ctx
 import dash_leaflet as dl
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
+ 
 
+app = Dash(__name__, suppress_callback_exceptions=True)
 
-app = Dash(__name__)
 
 
 with open('london_lsoa21.geojson') as f:
@@ -18,6 +19,14 @@ with open('london_lsoa11.geojson') as f:
 
 
 monthly_df = pd.read_csv('final_dataset.csv')
+
+prediction = pd.read_csv('C:/Users/20234513/OneDrive - TU Eindhoven/CBL Folder/Modified_March_2025_Burglary_Predictions.csv')
+# Prepare prediction map figure (rename column to match heatmap function)
+# Prepare prediction map figure (rename column to match heatmap function)
+
+
+
+
 
 
 burglary_df = (
@@ -43,26 +52,54 @@ dropdown_options = [
     }
     for _, row in sorted_df.iterrows()
 ]
-def generate_heatmap( df, geojson, zoom, feature_key, center = {"lat": 51.5074, "lon": -0.1278} ):
+
+prediction_map_df = prediction.rename(columns={"Predicted_Burglary_Count": "Burglary_Count"})
+
+prediction_map = generate_heatmap(
+    prediction_map_df,
+    lsoa21_geojson,
+    zoom=8.85,
+    feature_key="properties.LSOA21CD"
+)
+
+
+def generate_heatmap(df, geojson, zoom, feature_key, center={"lat": 51.5074, "lon": -0.1278}, color_col="Burglary_Count"):
     return px.choropleth_map(
         df,
         geojson=geojson,
         locations='LSOA code',
-        featureidkey= feature_key,
-        color='Burglary_Count',
+        featureidkey=feature_key,
+        color=color_col,
         color_continuous_scale="viridis",
-        range_color=(df['Burglary_Count'].quantile(0.05), df['Burglary_Count'].quantile(0.95)),
+        range_color=(df[color_col].quantile(0.05), df[color_col].quantile(0.95)),
         map_style="open-street-map",
         zoom=zoom,
         opacity=0.7,
-        center= center,
-        labels={'Burglary_Count': 'Burglary Count'},
+        center=center,
+        labels={color_col: 'Burglary Count'},
     )
+
 
 heatmap = generate_heatmap(burglary_df, lsoa11_geojson, zoom=8.85, feature_key="properties.LSOA11CD" )
 
-# App Layout
-app.layout = html.Div(
+
+# Layout for the prediction page
+prediction_layout = html.Div([
+    html.H1("Burglary Prediction Map", style={"textAlign": "center"}),
+    dcc.Graph(
+        id="prediction-map",
+        figure=prediction_map,
+        style={"height": "90vh", "width": "100%"},
+        config={"displayModeBar": False}
+    ),
+    html.Button("Back to Main Page", id="back-button", n_clicks=0, style={
+        "marginTop": "10px", "padding": "10px", "backgroundColor": "#5cb85c",
+        "color": "white", "border": "none", "borderRadius": "5px", "cursor": "pointer"
+    })
+])
+
+# Main layout
+main_layout = html.Div(
     style={
         "display": "flex",
         "padding": "20px",
@@ -181,9 +218,9 @@ app.layout = html.Div(
                                     }
                                 ),
                                 html.Button(
-                                    "Show burglary prediction Map",
-                                    id=" burglary prediction button",
-                                    n_clicks=0,
+                                    "Show burglary prediction-Map",
+                                    id='burglary-prediction-button',
+                                    n_clicks=1,
                                     style={
                                         "padding": "10px",
                                         "backgroundColor": "#0275d8",
@@ -271,6 +308,17 @@ app.layout = html.Div(
 
 )
 
+# Prepare prediction map figure (rename column to match heatmap function)
+# layout of the main webapp
+app.layout = html.Div([
+    dcc.Location(id='url', refresh=False),
+    html.Div(id='main-layout-container', children=main_layout),
+    html.Div(id='prediction-layout-container', children=prediction_layout, style={"display": "none"})
+])
+
+
+
+
 @app.callback(
     Output("map-title", "children"),
     Input("year-slider", "value"),
@@ -327,6 +375,7 @@ def toggle_trend_slider(trend_type):
     if trend_type == 'month':
         return {"display": "block", "padding": "10px"}
     return {"display": "none"}
+
 
 
 #Call back for the heatmap, search feedback, LSOA plot and its header
@@ -431,5 +480,32 @@ def zoom_to_lsoa(code, n_clicks, year_range, trend_view, trend_year_slider):
 
     return updated_map, feedback, fig, year_range, code, trend_title
 
+# Switch between pages
+@app.callback(
+    Output('main-layout-container', 'style'),
+    Output('prediction-layout-container', 'style'),
+    Input('url', 'pathname')
+)
+def toggle_visibility(pathname):
+    if pathname == "/prediction":
+        return {"display": "none"}, {"display": "block"}
+    return {"display": "block"}, {"display": "none"}
+
+# Navigate via buttons
+@app.callback(
+    Output('url', 'pathname'),
+    Input('burglary-prediction-button', 'n_clicks'),
+    Input('back-button', 'n_clicks'),
+    prevent_initial_call=True
+)
+def navigate(pred_clicks, back_clicks):
+    triggered = ctx.triggered_id
+    print("Button clicked:", triggered)  #
+    if triggered == 'burglary-prediction-button':
+        return '/prediction'
+    elif triggered == 'back-button':
+        return '/'
+
+
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug= True)
