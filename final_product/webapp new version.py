@@ -20,7 +20,8 @@ with open('london_lsoa11.geojson') as f:
 
 monthly_df = pd.read_csv('final_dataset.csv')
 
-prediction = pd.read_csv('Modified_March_2025_Burglary_Predictions')
+prediction = pd.read_csv('Modified_March_2025_With_Boroughs.csv')
+prediction['Predicted_Burglary_Count'] = prediction['Predicted_Burglary_Count'].round(2) 
 
 
 
@@ -54,14 +55,6 @@ dropdown_options = [
 
 prediction_map_df = prediction.rename(columns={"Predicted_Burglary_Count": "Burglary_Count"})
 
-prediction_map = generate_heatmap(
-    prediction_map_df,
-    lsoa21_geojson,
-    zoom=8.85,
-    feature_key="properties.LSOA21CD"
-)
-
-
 def generate_heatmap(df, geojson, zoom, feature_key, center={"lat": 51.5074, "lon": -0.1278}, color_col="Burglary_Count"):
     return px.choropleth_map(
         df,
@@ -77,25 +70,141 @@ def generate_heatmap(df, geojson, zoom, feature_key, center={"lat": 51.5074, "lo
         center=center,
         labels={color_col: 'Burglary Count'},
     )
-
+prediction_map = generate_heatmap(
+    prediction_map_df,
+    lsoa21_geojson,
+    zoom=8.85,
+    feature_key="properties.LSOA21CD"
+)
 
 heatmap = generate_heatmap(burglary_df, lsoa11_geojson, zoom=8.85, feature_key="properties.LSOA11CD" )
 
 
 # Layout for the prediction page
 prediction_layout = html.Div([
-    html.H1("Burglary Prediction Map", style={"textAlign": "center"}),
-    dcc.Graph(
-        id="prediction-map",
-        figure=prediction_map,
-        style={"height": "90vh", "width": "100%"},
-        config={"displayModeBar": False}
-    ),
-    html.Button("Back to Main Page", id="back-button", n_clicks=0, style={
-        "marginTop": "10px", "padding": "10px", "backgroundColor": "#5cb85c",
-        "color": "white", "border": "none", "borderRadius": "5px", "cursor": "pointer"
-    })
+    html.Div(
+        style={'display': 'flex', 'flexDirection': 'row', 'gap': '10px', 'padding': '20px'},
+            children=[
+                html.Div(
+                    style={
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "position": "relative",
+                        "width": "60vw",
+                        "height": "94vh",
+                        "backgroundColor": "white",
+                        "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
+                        "borderRadius": "8px",
+                        "overflow": "hidden",
+                    },
+                    children=[
+                        dcc.Graph(
+                            id='prediction-map',
+                            figure=prediction_map,
+                            style={"width": "100%", "height": "100%"},
+                            config={"displayModeBar": False},
+                        ),
+
+                        html.H1("Burglary Prediction Map For March 2025",
+                            id ="prediction-map-title",
+                            style={
+                                "position": "absolute",
+                                "top": "10px",
+                                "left": "40%",
+                                "transform": "translateX(-50%)",
+                                 "margin": 0,
+                                "pointerEvents": "none",
+                                "color": "rgba(0,0,0,0,0.8)",
+                                "fontSize": "1.75rem",
+                            },
+                        ),
+                    ],
+                ),
+                html.Div(
+                    style = {"display': 'flex', 'backgroundColor": "f5f5f5", "flexDirection": "column", 'height':'94vh', 'width':'36.5vw'},
+                    children = [
+                        html.Div(
+                            style={
+                                "display": "flex",
+                                "flexDirection": "column",
+                                "gap": "10px",
+                                "height": "35vh",
+                                "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
+                                "borderRadius": "8px",
+                                'backgroundColor': "white",
+                                "justifyContent": "flex-start",
+                                "padding": "10px",
+                            },
+                            children=[
+                                html.Div(
+                                    style={
+                                        "display": "flex",
+                                        "flexDirection": "row",
+                                        "gap": "10px"},
+                                    children =[
+                                        html.Div(
+                                            children =[
+                                                html.Label("Filter by Borough"),
+                                                dcc.Dropdown(id ='prediction-borough-dropdown',
+                                                options=[{"label": b, "value": b} for b in sorted(prediction_map_df['Borough'].unique())],
+                                                placeholder='Select a Borough',
+                                                style={"width": "100%"}),
+                                            ], style={"width": "50%"}
+                                        ),
+                                        html.Div(
+                                            children =[
+                                                html.Label("Filter by Ward"),
+                                                dcc.Dropdown(id='prediction-ward-dropdown',
+                                                options=[],
+                                                placeholder='Select a Ward',
+                                                style={"width": "100%"})
+                                            ], style={"width": "50%"}
+                                        )
+                                    ],
+                                ),
+                                html.Label("Search LSOA"),
+                                dcc.Dropdown(
+                                    id='prediction-lsoa-dropdown',
+                                    options=dropdown_options,
+                                    placeholder='Select an LSOA code',
+                                    style={"width": "100%"}
+                                ),
+                                html.Button(
+                                    "Reset Map",
+                                    id="prediction-reset-button",
+                                    n_clicks=0,
+                                    style={
+                                        "padding": "10px",
+                                        "backgroundColor": "#d9534f",
+                                        "color": "white",
+                                        "border": "none",
+                                        "borderRadius": "5px",
+                                        "cursor": "pointer"
+                                    }
+                                ),
+                                html.Button(
+                                    "Back to Main Page",
+                                    id="back-button",
+                                    n_clicks=1,
+                                    style={
+                                        "padding": "10px",
+                                        "backgroundColor": "#0275d8",
+                                        "color": "white",
+                                        "border": "none",
+                                        "borderRadius": "5px",
+                                        "cursor": "pointer"
+                                    },
+                                ),
+                                html.Div(id='prediction-search-feedback', style={"color": "black"}),
+                            ],
+                        ),
+                    ],
+                ),
+        ]
+    )
 ])
+    
+
 
 # Main layout
 main_layout = html.Div(
@@ -307,6 +416,7 @@ main_layout = html.Div(
 
 )
 
+# Prepare prediction map figure (rename column to match heatmap function)
 # layout of the main webapp
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
@@ -498,12 +608,127 @@ def toggle_visibility(pathname):
 )
 def navigate(pred_clicks, back_clicks):
     triggered = ctx.triggered_id
-    print("Button clicked:", triggered)  #
     if triggered == 'burglary-prediction-button':
         return '/prediction'
     elif triggered == 'back-button':
         return '/'
+#######
+######
+#######
+#####
+########
+### Callbacks for predictive page!
+@app.callback(
+    Output('prediction-ward-dropdown', 'options'),
+    Input('prediction-borough-dropdown', 'value')
+)
+def update_prediction_ward_options(borough):
+    if not borough:
+        return []
+    wards = prediction_map_df[prediction_map_df['Borough'] == borough]['WD24NM'].dropna().unique()
+    return [{"label": w, "value": w} for w in sorted(wards)]
+
+@app.callback(
+    Output('prediction-lsoa-dropdown', 'options'),
+    Input('prediction-borough-dropdown', 'value'),
+    Input('prediction-ward-dropdown', 'value')
+)
+def update_prediction_lsoa_options(borough, ward):
+    df = prediction_map_df.copy()
+    if borough:
+        df = df[df['Borough'] == borough]
+    if ward:
+        df = df[df['WD24NM'] == ward]
+
+    return [{"label": f"{row['Borough']} - {row['LSOA code']}", "value": row["LSOA code"]}
+            for _, row in df.iterrows()]
+
+
+@app.callback(
+    Output('prediction-map', 'figure'),
+    Input('prediction-lsoa-dropdown', 'value'),
+    Input('prediction-reset-button', 'n_clicks'),
+)
+def update_prediction_map_with_highlight(code, n_clicks):
+    
+    
+    if not code:
+        return generate_heatmap(prediction_map_df, lsoa21_geojson, zoom=8.85, feature_key="properties.LSOA21CD")
+    
+    triggered_id = ctx.triggered_id
+    if triggered_id == 'prediction-reset-button' or not code:
+        return generate_heatmap(
+            prediction_map_df, 
+            lsoa21_geojson, 
+            zoom=8.85, 
+            feature_key="properties.LSOA21CD"
+        )
+
+    # Get geometry
+    polygon = next((f for f in lsoa21_geojson['features'] if f['properties']['LSOA21CD'] == code), None)
+    if not polygon:
+        return generate_heatmap(prediction_map_df, lsoa21_geojson, zoom=8.85, feature_key="properties.LSOA21CD")
+
+    # Extract coordinates and calculate center
+    coordinates = []
+    def gather_coords(coord_list):
+        for c in coord_list:
+            if isinstance(c[0], list):
+                gather_coords(c)
+            else:
+                coordinates.append(c)
+    gather_coords(polygon['geometry']['coordinates'])
+
+    if not coordinates:
+        return generate_heatmap(prediction_map_df, lsoa21_geojson, zoom=8.85, feature_key="properties.LSOA21CD")
+
+    lons, lats = zip(*coordinates)
+    center = {"lon": sum(lons)/len(lons), "lat": sum(lats)/len(lats)}
+
+    # Generate base map
+    prediction_map = generate_heatmap(
+        prediction_map_df,
+        lsoa21_geojson,
+        zoom=12,
+        feature_key="properties.LSOA21CD",
+        center=center
+    )
+
+    # Add red border polygon
+    prediction_map.add_trace(go.Scattermap(
+        lon=lons + (lons[0],),
+        lat=lats + (lats[0],),
+        mode='lines',
+        line=dict(width=3, color='red'),
+        fill=None,
+        hoverinfo='skip',
+        showlegend=False
+    ))
+
+    return prediction_map
+
+@app.callback(
+    Output('prediction-search-feedback', 'children'),
+    Input('prediction-lsoa-dropdown', 'value')
+)
+def update_prediction_feedback(code):
+    if not code:
+        return ""
+
+    df = prediction.copy()
+    row = df[df['LSOA code'] == code]
+
+    prediction_col = 'Predicted_Burglary_Count'
+    if prediction_col not in row.columns:
+        return f"Prediction column '{prediction_col}' not found in dataset."
+
+    pred_value = row[prediction_col].iloc[0]
+    if pd.isna(pred_value):
+        return f"No prediction available for LSOA {code}."
+
+    return f"Predicted number of burglaries next month in LSOA {code}: {round(pred_value, 1)}"
+
 
 
 if __name__ == '__main__':
-    app.run(debug= True)
+    app.run(debug= False)
