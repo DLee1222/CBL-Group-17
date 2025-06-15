@@ -1,3 +1,10 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Jun 15 11:48:18 2025
+
+@author: 20234513
+"""
+
 import json
 import pandas as pd
 import plotly.express as px
@@ -43,9 +50,62 @@ dropdown_options = [
     for _, row in sorted_df.iterrows()
 ]
 
+
+
+
+
+
+#print(prediction.head())
+
+print(prediction.columns)
+
+def allocate_officers(lsoa_code, prediction, total_officers=100):
+    if not lsoa_code:
+        return "Please select an LSOA code."
+    
+    ward_data = prediction[prediction['LSOA code'] == lsoa_code]
+    if ward_data.empty:
+        return f"LSOA code {lsoa_code} not found."
+    
+    ward_name = ward_data['WD24NM'].iloc[0]
+    ward_df = prediction[prediction['WD24NM'] == ward_name].copy()
+    
+    # Calculate crime proportions
+    ward_total_crime = ward_df['Predicted_Burglary_Count'].sum()
+    ward_df['Officer_Share'] = ward_df['Predicted_Burglary_Count'] / ward_total_crime * total_officers
+    ward_df['Base_Allocation'] = ward_df['Officer_Share'].apply(int)
+    ward_df['Decimals'] = ward_df['Officer_Share'] - ward_df['Base_Allocation']
+    
+    # Ensure a minimum of 2 officers for each LSOA
+    ward_df['Base_Allocation'] = ward_df['Base_Allocation'].apply(lambda x: max(x, 2))
+    total_allocated = ward_df['Base_Allocation'].sum()
+    remaining_officers = total_officers - total_allocated
+    
+    # Distribute remaining officers
+    if remaining_officers > 0:
+        ward_df = ward_df.sort_values(by='Decimals', ascending=False).copy()
+        for i in range(remaining_officers):
+            ward_df.iloc[i, ward_df.columns.get_loc('Base_Allocation')] += 1
+    
+    ward_df['Final_Allocation'] = ward_df['Base_Allocation']
+    return ward_df[['LSOA code', 'Final_Allocation']].set_index('LSOA code').to_dict()['Final_Allocation']
+
+
+# Compute allocations across all wards
+all_allocations = {}
+
+for ward in prediction['WD24NM'].dropna().unique():
+    ward_df = prediction[prediction['WD24NM'] == ward]
+    if not ward_df.empty:
+        example_lsoa = ward_df['LSOA code'].iloc[0]
+        ward_allocations = allocate_officers(example_lsoa, prediction)
+        all_allocations.update(ward_allocations)
+
+prediction['Allocated_Officers'] = prediction['LSOA code'].map(all_allocations)
+
+
+
 prediction_map_df = prediction.rename(columns={"Predicted_Burglary_Count": "Burglary_Count"})
-
-
 def generate_heatmap(df, geojson, zoom, feature_key, center={"lat": 51.5074, "lon": -0.1278},
                      color_col="Burglary_Count"):
     return px.choropleth_map(
@@ -63,6 +123,8 @@ def generate_heatmap(df, geojson, zoom, feature_key, center={"lat": 51.5074, "lo
         labels={color_col: 'Burglary Count'},
     )
 
+heatmap = generate_heatmap(burglary_df, lsoa11_geojson, zoom=8.85, feature_key="properties.LSOA11CD")
+
 
 prediction_map = generate_heatmap(
     prediction_map_df,
@@ -70,8 +132,18 @@ prediction_map = generate_heatmap(
     zoom=8.85,
     feature_key="properties.LSOA21CD"
 )
+# Update hover text to include officer allocation
+hover_texts = prediction_map_df.apply(
+    lambda row: f"LSOA: {row['LSOA code']}<br>"
+                f"Burglary Count: {row['Burglary_Count']}<br>"
+                f"Allocated Officers: {row['Allocated_Officers']}",
+    axis=1
+)
 
-heatmap = generate_heatmap(burglary_df, lsoa11_geojson, zoom=8.85, feature_key="properties.LSOA11CD")
+# Inject the custom hover text
+prediction_map.data[0].hovertemplate = "%{customdata}"
+prediction_map.data[0].customdata = hover_texts.values[:, None]
+
 
 # Layout for the prediction page
 prediction_layout = html.Div([
@@ -191,7 +263,10 @@ prediction_layout = html.Div([
                                 },
                             ),
                             html.Div(id='prediction-search-feedback', style={"color": "black"}),
+                            html.Div(id='officer-allocation-output', style={"padding": "10px", "color": "black"}),
+
                         ],
+                            
                     ),
                 ],
             ),
@@ -650,28 +725,46 @@ def update_prediction_lsoa_options(borough, ward):
 
 @app.callback(
     Output('prediction-map', 'figure'),
+    Output('prediction-borough-dropdown', 'value'),
+    Output('prediction-ward-dropdown', 'value'),
+    Output('prediction-lsoa-dropdown', 'value'),
+    Output('prediction-search-feedback', 'children'),
+    Output('officer-allocation-output', 'children'),
     Input('prediction-lsoa-dropdown', 'value'),
     Input('prediction-reset-button', 'n_clicks'),
 )
-def update_prediction_map_with_highlight(code, n_clicks):
-    if not code:
-        return generate_heatmap(prediction_map_df, lsoa21_geojson, zoom=8.85, feature_key="properties.LSOA21CD")
-
+def update_prediction_view(code, n_clicks):
     triggered_id = ctx.triggered_id
+
+    # Create the default map
+    default_map = generate_heatmap(
+        prediction_map_df,
+        lsoa21_geojson,
+        zoom=8.85,
+        feature_key="properties.LSOA21CD"
+    )
+    default_map.data[0].hovertemplate = "%{customdata}"
+    default_map.data[0].customdata = prediction_map_df.apply(
+        lambda row: f"LSOA: {row['LSOA code']}<br>"
+                    f"Burglary Count: {row['Burglary_Count']}<br>"
+                    f"Allocated Officers: {row['Allocated_Officers']}",
+        axis=1
+    ).values[:, None]
+
     if triggered_id == 'prediction-reset-button' or not code:
-        return generate_heatmap(
-            prediction_map_df,
-            lsoa21_geojson,
-            zoom=8.85,
-            feature_key="properties.LSOA21CD"
+        return (
+            default_map,
+            None,
+            None,
+            None,
+            "",
+            "Please select an LSOA code to see officer allocation."
         )
 
-    # Get geometry
     polygon = next((f for f in lsoa21_geojson['features'] if f['properties']['LSOA21CD'] == code), None)
     if not polygon:
-        return generate_heatmap(prediction_map_df, lsoa21_geojson, zoom=8.85, feature_key="properties.LSOA21CD")
+        return default_map, None, None, None, f"Geometry not found for LSOA {code}.", ""
 
-    # Extract coordinates and calculate center
     coordinates = []
 
     def gather_coords(coord_list):
@@ -682,14 +775,12 @@ def update_prediction_map_with_highlight(code, n_clicks):
                 coordinates.append(c)
 
     gather_coords(polygon['geometry']['coordinates'])
-
     if not coordinates:
-        return generate_heatmap(prediction_map_df, lsoa21_geojson, zoom=8.85, feature_key="properties.LSOA21CD")
+        return default_map, None, None, None, f"No coordinates for LSOA {code}.", ""
 
     lons, lats = zip(*coordinates)
     center = {"lon": sum(lons) / len(lons), "lat": sum(lats) / len(lats)}
 
-    # Generate base map
     prediction_map = generate_heatmap(
         prediction_map_df,
         lsoa21_geojson,
@@ -697,8 +788,14 @@ def update_prediction_map_with_highlight(code, n_clicks):
         feature_key="properties.LSOA21CD",
         center=center
     )
+    prediction_map.data[0].hovertemplate = "%{customdata}"
+    prediction_map.data[0].customdata = prediction_map_df.apply(
+        lambda row: f"LSOA: {row['LSOA code']}<br>"
+                    f"Burglary Count: {row['Burglary_Count']}<br>"
+                    f"Allocated Officers: {row['Allocated_Officers']}",
+        axis=1
+    ).values[:, None]
 
-    # Add red border polygon
     prediction_map.add_trace(go.Scattermap(
         lon=lons + (lons[0],),
         lat=lats + (lats[0],),
@@ -709,30 +806,68 @@ def update_prediction_map_with_highlight(code, n_clicks):
         showlegend=False
     ))
 
-    return prediction_map
-
-
-@app.callback(
-    Output('prediction-search-feedback', 'children'),
-    Input('prediction-lsoa-dropdown', 'value')
-)
-def update_prediction_feedback(code):
-    if not code:
-        return ""
-
     df = prediction.copy()
     row = df[df['LSOA code'] == code]
+    if row.empty:
+        return prediction_map, None, None, code, f"No data found for LSOA {code}.", ""
 
-    prediction_col = 'Predicted_Burglary_Count'
-    if prediction_col not in row.columns:
-        return f"Prediction column '{prediction_col}' not found in dataset."
+    pred_value = row['Predicted_Burglary_Count'].iloc[0]
+    feedback = f"Predicted number of burglaries next month in LSOA {code}: {round(pred_value, 1)}"
 
-    pred_value = row[prediction_col].iloc[0]
-    if pd.isna(pred_value):
-        return f"No prediction available for LSOA {code}."
+    allocation = allocate_officers(code, prediction)
+    ward_name = row['WD24NM'].iloc[0]
+    ward_df = prediction[prediction['WD24NM'] == ward_name]
+    ward_total = ward_df['Predicted_Burglary_Count'].sum()
 
-    return f"Predicted number of burglaries next month in LSOA {code}: {round(pred_value, 1)}"
+    table_rows = [
+        html.Tr([
+            html.Th("LSOA Code"),
+            html.Th("Burglary Count"),
+            html.Th("Percentage of Ward Total"),
+            html.Th("Allocated Officers")
+        ])
+    ]
+
+    for lsoa, officers in allocation.items():
+        lsoa_data = prediction[prediction['LSOA code'] == lsoa]
+        count = lsoa_data['Predicted_Burglary_Count'].iloc[0]
+        percent = (count / ward_total) * 100
+        row_style = {
+            "backgroundColor": "#d9f2d9",
+            "fontWeight": "bold"
+        } if lsoa == code else {}
+
+        table_rows.append(
+            html.Tr([
+                html.Td(lsoa),
+                html.Td(count),
+                html.Td(f"{percent:.2f}%"),
+                html.Td(max(officers, 2))
+            ], style=row_style)
+        )
+
+    table_rows.append(
+        html.Tr([
+            html.Td("Total", style={"fontWeight": "bold"}),
+            html.Td(ward_total, style={"fontWeight": "bold"}),
+            html.Td("100.00%", style={"fontWeight": "bold"}),
+            html.Td(sum(max(o, 2) for o in allocation.values()), style={"fontWeight": "bold"})
+        ])
+    )
+
+    allocation_output = html.Div([
+        html.H4(f"Officer Allocation for Ward: {ward_name}", style={"marginTop": "10px"}),
+        html.Table(table_rows, style={
+            "width": "100%",
+            "border": "1px solid black",
+            "borderCollapse": "collapse",
+            "textAlign": "left",
+            "marginTop": "10px"
+        })
+    ])
+
+    return prediction_map, None, None, code, feedback, allocation_output
 
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
