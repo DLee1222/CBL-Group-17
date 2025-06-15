@@ -13,7 +13,7 @@ import dash_leaflet as dl
 from dash.dependencies import Input, Output
 import plotly.graph_objects as go
 
-app = Dash(__name__, suppress_callback_exceptions=True)
+app = Dash(__name__)
 
 with open('london_lsoa21.geojson') as f:
     lsoa21_geojson = json.load(f)
@@ -50,14 +50,6 @@ dropdown_options = [
     for _, row in sorted_df.iterrows()
 ]
 
-
-
-
-
-
-#print(prediction.head())
-
-print(prediction.columns)
 
 def allocate_officers(lsoa_code, prediction, total_officers=100):
     if not lsoa_code:
@@ -194,7 +186,7 @@ prediction_layout = html.Div([
                             "display": "flex",
                             "flexDirection": "column",
                             "gap": "10px",
-                            "height": "35vh",
+                            "height": "37vh",
                             "boxShadow": "0 0 10px rgba(0,0,0,0.1)",
                             "borderRadius": "8px",
                             'backgroundColor': "white",
@@ -870,4 +862,4 @@ def update_prediction_view(code, n_clicks):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
