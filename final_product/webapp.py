@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 """
+Created on Sun Jun 15 15:40:43 2025
+
+@author: 20234513
+"""
+
+# -*- coding: utf-8 -*-
+"""
 Created on Sun Jun 15 11:48:18 2025
 
 @author: 20234513
@@ -10,7 +17,7 @@ import pandas as pd
 import plotly.express as px
 from dash import Dash, html, dcc, ctx
 import dash_leaflet as dl
-from dash.dependencies import Input, Output
+from dash.dependencies import Input, Output, State
 import plotly.graph_objects as go
 
 app = Dash(__name__)
@@ -127,7 +134,7 @@ prediction_map = generate_heatmap(
 # Update hover text to include officer allocation
 hover_texts = prediction_map_df.apply(
     lambda row: f"LSOA: {row['LSOA code']}<br>"
-                f"Burglary Count: {row['Burglary_Count']}<br>"
+                f" Predictive burglary Count: {row['Burglary_Count']}<br>"
                 f"Allocated Officers: {row['Allocated_Officers']}",
     axis=1
 )
@@ -724,8 +731,10 @@ def update_prediction_lsoa_options(borough, ward):
     Output('officer-allocation-output', 'children'),
     Input('prediction-lsoa-dropdown', 'value'),
     Input('prediction-reset-button', 'n_clicks'),
+    State('prediction-borough-dropdown', 'value'),
+    State('prediction-ward-dropdown', 'value'),
 )
-def update_prediction_view(code, n_clicks):
+def update_prediction_view(code, n_clicks, current_ward, current_borough):
     triggered_id = ctx.triggered_id
 
     # Create the default map
@@ -738,7 +747,7 @@ def update_prediction_view(code, n_clicks):
     default_map.data[0].hovertemplate = "%{customdata}"
     default_map.data[0].customdata = prediction_map_df.apply(
         lambda row: f"LSOA: {row['LSOA code']}<br>"
-                    f"Burglary Count: {row['Burglary_Count']}<br>"
+                    f"Predictive burglary Count: {row['Burglary_Count']}<br>"
                     f"Allocated Officers: {row['Allocated_Officers']}",
         axis=1
     ).values[:, None]
@@ -746,8 +755,8 @@ def update_prediction_view(code, n_clicks):
     if triggered_id == 'prediction-reset-button' or not code:
         return (
             default_map,
-            None,
-            None,
+            current_ward,
+            current_borough,
             None,
             "",
             "Please select an LSOA code to see officer allocation."
@@ -783,7 +792,7 @@ def update_prediction_view(code, n_clicks):
     prediction_map.data[0].hovertemplate = "%{customdata}"
     prediction_map.data[0].customdata = prediction_map_df.apply(
         lambda row: f"LSOA: {row['LSOA code']}<br>"
-                    f"Burglary Count: {row['Burglary_Count']}<br>"
+                    f"Predictive burglary Count: {row['Burglary_Count']}<br>"
                     f"Allocated Officers: {row['Allocated_Officers']}",
         axis=1
     ).values[:, None]
