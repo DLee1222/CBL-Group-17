@@ -11,7 +11,7 @@ Created on Sun Jun 15 11:48:18 2025
 
 @author: 20234513
 """
-
+#First we import all the nessecarry Libraries
 import json
 import pandas as pd
 import plotly.express as px
@@ -22,6 +22,8 @@ import plotly.graph_objects as go
 
 app = Dash(__name__)
 
+
+#Here we load all the datasets and GeoJSONs, Furthermore we sort the datsets for easier handling later on
 with open('london_lsoa21.geojson') as f:
     lsoa21_geojson = json.load(f)
 
@@ -57,7 +59,7 @@ dropdown_options = [
     for _, row in sorted_df.iterrows()
 ]
 
-
+# Allocation of police officers based on the burglary prediction
 def allocate_officers(lsoa_code, prediction, total_officers=100):
     if not lsoa_code:
         return "Please select an LSOA code."
@@ -103,7 +105,7 @@ for ward in prediction['WD24NM'].dropna().unique():
 prediction['Allocated_Officers'] = prediction['LSOA code'].map(all_allocations)
 
 
-
+#Generate the Heapmap for both the main page and prediction page
 prediction_map_df = prediction.rename(columns={"Predicted_Burglary_Count": "Burglary_Count"})
 def generate_heatmap(df, geojson, zoom, feature_key, center={"lat": 51.5074, "lon": -0.1278},
                      color_col="Burglary_Count"):
@@ -121,10 +123,10 @@ def generate_heatmap(df, geojson, zoom, feature_key, center={"lat": 51.5074, "lo
         center=center,
         labels={color_col: 'Burglary Count'},
     )
-
+#Heatmap for the main page
 heatmap = generate_heatmap(burglary_df, lsoa11_geojson, zoom=8.85, feature_key="properties.LSOA11CD")
 
-
+#heatmap for the prediction page
 prediction_map = generate_heatmap(
     prediction_map_df,
     lsoa21_geojson,
@@ -485,15 +487,19 @@ main_layout = html.Div(
 
 )
 
-# Prepare prediction map figure (rename column to match heatmap function)
-# layout of the main webapp
+
+# layout of the entire webapp, and the switch between main page and prediction page
 app.layout = html.Div([
     dcc.Location(id='url', refresh=False),
     html.Div(id='main-layout-container', children=main_layout),
     html.Div(id='prediction-layout-container', children=prediction_layout, style={"display": "none"})
 ])
 
-
+#
+#
+#
+#All the callbacks for the main page
+#Callcack for the yearslider on the main heatmap
 @app.callback(
     Output("map-title", "children"),
     Input("year-slider", "value"),
@@ -576,14 +582,14 @@ def zoom_to_lsoa(code, n_clicks, year_range, trend_view, trend_year_slider):
         (monthly_df['Year'] >= start_year) &
         (monthly_df['Year'] <= end_year)
         ]
-
+    
     df_map = (
         filtered
         .groupby(['LSOA code', 'Borough'])['Burglary_Count']
         .sum()
         .reset_index()
     )
-
+    #Show the map based on the year slider
     geojson = lsoa21_geojson if start_year >= 2021 else lsoa11_geojson
     lsoa_code_key = 'properties.LSOA21CD' if start_year >= 2021 else 'properties.LSOA11CD'
 
@@ -591,21 +597,22 @@ def zoom_to_lsoa(code, n_clicks, year_range, trend_view, trend_year_slider):
 
     if not code:
         return range_map, "", go.Figure(), year_range, None, 'Select an LSOA to see burglary trends'
-
+        
+    # the reset button
     triggered_id = ctx.triggered_id
     if triggered_id == 'reset-button':
         return range_map, "", go.Figure(), year_range, None, 'Select an LSOA to see burglary trends'
-
+    
     code = code.strip().upper()
     if code not in data_lookup:
         return range_map, "LSOA code not found.", go.Figure(), year_range, code, 'Select an LSOA to see burglary trends'
-
+    
     polygon = next((f for f in geojson['features'] if f['properties'].get(lsoa_code_key.split(".")[-1]) == code), None)
     if not polygon:
         return range_map, f"No geometry polygon for LSOA code {code}.", go.Figure(), year_range, code, 'Select an LSOA to see burglary trends'
 
     coordinates = []
-
+    #get the coordinates for the zoomed-in heatmap
     def gather_coordinates(coord_list):
         for c in coord_list:
             if isinstance(c[0], list):
@@ -617,7 +624,8 @@ def zoom_to_lsoa(code, n_clicks, year_range, trend_view, trend_year_slider):
 
     lons, lats = zip(*coordinates)
     center = {"lon": sum(lons) / len(lons), "lat": sum(lats) / len(lats)}
-
+    
+    #show the zoomed in map with the selected LSOA with a red outline
     updated_map = generate_heatmap(df_map, geojson, zoom=12, feature_key=lsoa_code_key, center=center)
     updated_map.add_trace(go.Scattermap(
         lon=lons + (lons[0],),
@@ -633,6 +641,7 @@ def zoom_to_lsoa(code, n_clicks, year_range, trend_view, trend_year_slider):
     count = int(series.iloc[0]) if not series.empty else 0
     feedback = f"LSOA {code} recorded {count} burglaries from {start_year} to {end_year}."
 
+    # graph with either the montly or the yearly burglary count
     if trend_view == 'month':
         trend_start, trend_end = trend_year_slider
         trend_df = monthly_df[
@@ -689,12 +698,12 @@ def navigate(pred_clicks, back_clicks):
         return '/'
 
 
-#######
-######
-#######
-#####
-########
-### Callbacks for predictive page!
+#
+#
+#
+#
+#
+#Callbacks for predictive page
 @app.callback(
     Output('prediction-ward-dropdown', 'options'),
     Input('prediction-borough-dropdown', 'value')
@@ -705,7 +714,7 @@ def update_prediction_ward_options(borough):
     wards = prediction_map_df[prediction_map_df['Borough'] == borough]['WD24NM'].dropna().unique()
     return [{"label": w, "value": w} for w in sorted(wards)]
 
-
+# the seach function for LSOA, logic is the same as in the main page
 @app.callback(
     Output('prediction-lsoa-dropdown', 'options'),
     Input('prediction-borough-dropdown', 'value'),
@@ -721,7 +730,7 @@ def update_prediction_lsoa_options(borough, ward):
     return [{"label": f"{row['Borough']} - {row['LSOA code']}", "value": row["LSOA code"]}
             for _, row in df.iterrows()]
 
-
+# The core callback for the prediction page
 @app.callback(
     Output('prediction-map', 'figure'),
     Output('prediction-borough-dropdown', 'value'),
@@ -751,7 +760,7 @@ def update_prediction_view(code, n_clicks, current_ward, current_borough):
                     f"Allocated Officers: {row['Allocated_Officers']}",
         axis=1
     ).values[:, None]
-
+    # Reset button, once clicked it will reset everything
     if triggered_id == 'prediction-reset-button' or not code:
         return (
             default_map,
@@ -767,7 +776,7 @@ def update_prediction_view(code, n_clicks, current_ward, current_borough):
         return default_map, None, None, None, f"Geometry not found for LSOA {code}.", ""
 
     coordinates = []
-
+    # Get the coordination for the selected LSOA
     def gather_coords(coord_list):
         for c in coord_list:
             if isinstance(c[0], list):
@@ -796,7 +805,8 @@ def update_prediction_view(code, n_clicks, current_ward, current_borough):
                     f"Allocated Officers: {row['Allocated_Officers']}",
         axis=1
     ).values[:, None]
-
+    
+    # Add the red line for the selected LSOA
     prediction_map.add_trace(go.Scattermap(
         lon=lons + (lons[0],),
         lat=lats + (lats[0],),
@@ -811,15 +821,17 @@ def update_prediction_view(code, n_clicks, current_ward, current_borough):
     row = df[df['LSOA code'] == code]
     if row.empty:
         return prediction_map, None, None, code, f"No data found for LSOA {code}.", ""
-
+    
     pred_value = row['Predicted_Burglary_Count'].iloc[0]
     feedback = f"Predicted number of burglaries next month in LSOA {code}: {round(pred_value, 1)}"
 
+    #get the amount of allocated officers to the selected LSOA and ward
     allocation = allocate_officers(code, prediction)
     ward_name = row['WD24NM'].iloc[0]
     ward_df = prediction[prediction['WD24NM'] == ward_name]
     ward_total = ward_df['Predicted_Burglary_Count'].sum()
 
+    # The layout for the table with police allocation of the selected LSOA and its corresponding ward
     table_rows = [
         html.Tr([
             html.Th("LSOA Code"),
@@ -866,9 +878,8 @@ def update_prediction_view(code, n_clicks, current_ward, current_borough):
             "marginTop": "10px"
         })
     ])
-
     return prediction_map, None, None, code, feedback, allocation_output
 
-
+#Run the entire webapp
 if __name__ == '__main__':
     app.run(debug=False)
